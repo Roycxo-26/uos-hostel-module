@@ -15,8 +15,10 @@ backend/keys/
 UOS_extracted.txt
 
 # Docs and planning files — kept local only, not pushed to this repo.
-# README.md is the one exception — it's what shows up on the GitHub repo
-# page, so it stays tracked.
+# The root README.md is the one exception — it's what shows up on the
+# GitHub repo page. The leading slash anchors this to the root only, so
+# any other README.md deeper in the tree (e.g. inside the vendored
+# uos-module-developer-bundle/ reference template) stays excluded too.
 *.md
 *.docx
-!README.md
+!/README.md

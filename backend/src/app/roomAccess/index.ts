@@ -1,0 +1,1 @@
+export { roomAccessRouter } from './route';

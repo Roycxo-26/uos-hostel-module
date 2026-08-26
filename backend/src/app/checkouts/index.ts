@@ -1,0 +1,1 @@
+export { checkoutsRouter } from './route';

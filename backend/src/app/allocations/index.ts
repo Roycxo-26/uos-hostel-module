@@ -1,0 +1,1 @@
+export { allocationsRouter } from './route';

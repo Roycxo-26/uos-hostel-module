@@ -1,0 +1,1 @@
+export { operationalNoticesRouter } from './route';

@@ -1,0 +1,1 @@
+export { commonAreasRouter } from './route';

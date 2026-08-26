@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.env
+*.local
+.DS_Store
+npm-debug.log*
+
+# Dev-only JWT signing keypair (backend/keys/) — never belongs in git, even
+# for a throwaway local-dev key. Anyone cloning the repo generates their own.
+*.pem
+backend/keys/
+
+# Extracted scratch text from the source .docx files — regenerate from the
+# .docx if needed, don't hand-edit.
+UOS_extracted.txt
+
+# Docs and planning files — kept local only, not pushed to this repo.
+# README.md is the one exception — it's what shows up on the GitHub repo
+# page, so it stays tracked.
+*.md
+*.docx
+!README.md

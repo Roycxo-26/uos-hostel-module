@@ -1,0 +1,1 @@
+export { movementsRouter } from './route';

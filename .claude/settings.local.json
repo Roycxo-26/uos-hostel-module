@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(LOCAL_DEV_DATABASE_URL=\"postgresql://hostel_admin:hostel_admin_dev_password@localhost:5433/hostel_dev\" npx knex migrate:latest --knexfile src/database/knexfile.ts)"
+    ]
+  }
+}

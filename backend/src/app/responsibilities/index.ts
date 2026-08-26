@@ -1,0 +1,1 @@
+export { responsibilitiesRouter } from './route';

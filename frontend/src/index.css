@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Overridden at runtime from tenant_settings.branding.primaryColor —
+     see context/TenantSettingsContext.tsx. This default is only what
+     renders before that first fetch resolves. */
+  --color-accent: #3730a3;
+  --color-accent-fg: #ffffff;
+  --color-accent-subtle: #eef2ff;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    /* InterVariable ships an optical-size axis — this lets small UI text and
+       large headings each pull the cut actually drawn for their size instead
+       of one static weight scaled up/down, which is where a lot of "this
+       looks slightly off" font complaints on data-dense apps come from. */
+    font-optical-sizing: auto;
+  }
+  /* Visible, consistent focus ring everywhere — flow.md §14 NFR
+     Accessibility, and non-negotiable for a university-wide tool used by
+     screen-reader and keyboard-only staff, not just an aesthetic choice. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}

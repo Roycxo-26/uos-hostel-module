@@ -1,0 +1,1 @@
+export { structureRouter } from './route';

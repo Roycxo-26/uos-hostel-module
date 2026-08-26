@@ -1,0 +1,1 @@
+export { safetyRouter } from './route';

@@ -1,0 +1,45 @@
+{
+  "name": "hostel-management-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UOS Hostel Management Module (UOS-131 to 136) backend. Built from uos-module-template — see uos-module-developer-bundle/ for the platform contract this follows.",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "nodemon",
+    "build": "tsc",
+    "migrate:make": "npx knex migrate:make --knexfile src/database/knexfile.ts -x ts",
+    "migrate:latest": "npx knex migrate:latest --knexfile src/database/knexfile.ts",
+    "migrate:rollback": "npx knex migrate:rollback --knexfile src/database/knexfile.ts",
+    "migrate:list": "npx knex migrate:list --knexfile src/database/knexfile.ts",
+    "seed:make": "npx knex seed:make --knexfile src/database/knexfile.ts",
+    "seed:up": "npx knex seed:run --knexfile src/database/knexfile.ts",
+    "keys:generate": "node scripts/dev-generate-keys.js",
+    "dev:mint-token": "ts-node scripts/dev-mint-token.ts",
+    "mint:org-admin": "ts-node scripts/dev-mint-token.ts --user-id=00000000-0000-0000-0000-000000000001 --role=org_admin",
+    "mint:head-warden": "ts-node scripts/dev-mint-token.ts --user-id=00000000-0000-0000-0000-000000000002 --role=campus_admin",
+    "mint:warden": "ts-node scripts/dev-mint-token.ts --user-id=00000000-0000-0000-0000-000000000003 --role=campus_admin",
+    "mint:student": "ts-node scripts/dev-mint-token.ts --user-id=00000000-0000-0000-0000-000000000004 --role=campus_admin",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@uos/auth": "github:SuperCXO/uos-auth-package#main",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "knex": "^3.1.0",
+    "pg": "^8.11.5",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.5.0"
+  }
+}

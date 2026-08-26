@@ -1,0 +1,1 @@
+export { grievancesRouter } from './route';

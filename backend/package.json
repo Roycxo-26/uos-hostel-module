@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@uos/auth": "github:SuperCXO/uos-auth-package#v1.4.0",
+    "@uos/auth": "github:SuperCXO/uos-auth-package#main",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",

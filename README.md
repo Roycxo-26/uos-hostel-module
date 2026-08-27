@@ -49,6 +49,32 @@ npm install
 npm run keys:generate
 ```
 
+> ### Keeping `@uos/auth` current — use `npm update`, not `npm install`
+>
+> `package.json` points at `#main` during development, so you always get the
+> platform's latest without anyone having to tell you a version number.
+>
+> **But `#main` does not track main on its own.** `package-lock.json` pins a
+> commit SHA, and `npm install` honours the lock — so it gives you whatever main
+> was when the lockfile was last written, however old that is. This is not
+> hypothetical: this module sat four releases behind on `#main` and an
+> `npm install` kept handing back the old one.
+>
+> To actually move forward:
+>
+> ```bash
+> npm update @uos/auth
+> ```
+>
+> That re-resolves the ref and rewrites the lockfile. Run it when you want the
+> latest platform code — and read the package's `CHANGELOG.md` afterwards,
+> because breaking changes arrive without a version bump to warn you. `v1.4.0`
+> changed `invalidatePermissions`'s signature, for example.
+>
+> Tags still exist (`v1.4.0` and so on) and are what we will pin to once
+> anything is deployed. `#main` is a development convenience, not the long-term
+> arrangement.
+
 > **Real bug, found running this for real:** `package.json` originally pinned `@uos/auth` to `github:SuperCXO/uos-auth-package#feat/two-token-flow` (per the bundle docs at the time this module was built). That branch no longer exists on the repo — it was merged into `main` and deleted at some point since. `npm install` fails with `pathspec 'feat/two-token-flow' did not match any file(s) known to git` if you ever see this again after a `git fetch`/branch change upstream; confirm with `git ls-remote --heads --tags git@github.com:SuperCXO/uos-auth-package.git` and repoint the dependency at whatever ref actually exists (currently `main`).
 
 ### 5. Boot, migrate, seed

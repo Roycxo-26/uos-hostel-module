@@ -86,12 +86,18 @@ export async function grantRole(actor: AuthUser, targetUserId: string, input: { 
     .onConflict(['user_id', 'campus_id'])
     .merge(['role', 'is_active', 'updated_at']);
 
-  await invalidatePermissions(targetUserId, MODULE, redis, input.campusId);
+  // Options object as of @uos/auth v1.4.0. It needs the org because Redis keys
+  // are tenant-prefixed now — and because until 1.4.0 this call silently did
+  // nothing at all: it deleted a key the cache had never written, so a role
+  // change took up to five minutes to actually apply.
+  await invalidatePermissions({
+    orgId: actor.org_id, userId: targetUserId, module: MODULE, redis, campusId: input.campusId,
+  });
 
   return getUser(targetUserId);
 }
 
-export async function revokeRole(targetUserId: string, role: string, campusId?: string): Promise<AdminUserRole[]> {
+export async function revokeRole(actor: AuthUser, targetUserId: string, role: string, campusId?: string): Promise<AdminUserRole[]> {
   const query = db('user_roles').where({ user_id: targetUserId, role });
   if (campusId) query.andWhere({ campus_id: campusId });
 
@@ -102,7 +108,9 @@ export async function revokeRole(targetUserId: string, role: string, campusId?: 
   // entries live for up to 30s." One call per affected campus, not a single
   // scan-based call, since a revoke can span more than one campus_id row.
   for (const row of affected) {
-    await invalidatePermissions(targetUserId, MODULE, redis, row.campus_id);
+    await invalidatePermissions({
+      orgId: actor.org_id, userId: targetUserId, module: MODULE, redis, campusId: row.campus_id,
+    });
   }
 
   return getUser(targetUserId);

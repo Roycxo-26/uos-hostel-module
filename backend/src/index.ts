@@ -25,8 +25,10 @@ const MIGRATIONS_CONFIG = {
 function buildSync() {
   return createSyncListener({
     baseUrl: process.env.AUTH_SERVER_URL!,
-    secret: process.env.INTERNAL_SYNC_SECRET!,
-    moduleId: process.env.MODULE_ID!,
+    // This module's own credential, not a secret shared with every module. The
+    // module id travels inside it, so there is no separate moduleId here — the
+    // sync endpoints derive who is calling rather than being told.
+    credential: process.env.MODULE_CREDENTIAL!,
     registry,
     getCursor: (orgId) =>
       registry
@@ -123,7 +125,7 @@ async function boot(): Promise<void> {
       : [
           'AUTH_SERVER_URL',
           'AUTH_PUBLIC_KEY_PATH',
-          'INTERNAL_SYNC_SECRET',
+          'MODULE_CREDENTIAL',
           'MODULE_ID',
           'MODULE_SCHEMA',
           'DB_APP_USER',

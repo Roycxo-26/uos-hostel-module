@@ -34,7 +34,7 @@ const revokeQuerySchema = z.object({ campusId: z.string().uuid().optional() });
 export async function revokeRole(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { campusId } = revokeQuerySchema.parse(req.query);
-    success(res, await service.revokeRole(req.params.userId, req.params.role, campusId));
+    success(res, await service.revokeRole(req.user, req.params.userId, req.params.role, campusId));
   } catch (err) {
     next(err);
   }

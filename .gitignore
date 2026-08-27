@@ -22,3 +22,8 @@ UOS_extracted.txt
 *.md
 *.docx
 !/README.md
+
+# Handover bundles are generated, never committed — a copy in the repo is a
+# second source of truth that goes stale the day the platform moves.
+uos-module-developer-bundle/
+uos-module-developer-bundle.zip

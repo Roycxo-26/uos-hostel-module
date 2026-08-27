@@ -42,7 +42,7 @@ export const registry = createTenantRegistry(
     : {
         catalog: {
           baseUrl: process.env.AUTH_SERVER_URL!,
-          secret: process.env.INTERNAL_SYNC_SECRET!,
+          credential: process.env.MODULE_CREDENTIAL!,
         },
         credentials,
         searchPath: [process.env.MODULE_SCHEMA!],

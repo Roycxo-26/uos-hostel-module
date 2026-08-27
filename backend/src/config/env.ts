@@ -14,7 +14,7 @@ const ALWAYS_REQUIRED = [
 ];
 
 // Live platform mode — real auth-server, real tenant catalog, real outbox sync.
-const LIVE_PLATFORM_REQUIRED = ['AUTH_SERVER_URL', 'INTERNAL_SYNC_SECRET'];
+const LIVE_PLATFORM_REQUIRED = ['AUTH_SERVER_URL', 'MODULE_CREDENTIAL'];
 
 // DEV_STANDALONE=true — single local Postgres, self-signed dev token, no live
 // auth-server. See README "Standalone dev mode" and scripts/dev-mint-token.ts.

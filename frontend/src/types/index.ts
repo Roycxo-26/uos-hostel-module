@@ -193,6 +193,10 @@ export interface Room {
 
 export type BedStatus = 'available' | 'reserved' | 'allocated' | 'occupied' | 'blocked' | 'maintenance';
 
+// D17.25 item 89 (TODO.md Batch 22) — a guest-category bed sits in its own
+// availability pool, never consumable by ordinary resident allocation.
+export type BedCategory = 'resident' | 'guest_short_stay';
+
 export interface Bed {
   id: string;
   roomId: string;
@@ -200,6 +204,7 @@ export interface Bed {
   status: BedStatus;
   statusReason: string | null;
   statusReviewDate: string | null;
+  bedCategory: BedCategory;
 }
 
 export interface RoomWithBeds extends Room {
@@ -900,4 +905,98 @@ export interface ResidentEmergencyCard {
   currentMovementStatus: string;
   dutyWardenUserId: string | null;
   dataAsOf: string;
+}
+
+// D17.25 (TODO.md Batch 22) — shutdown/reopening, mass relocation and
+// guest/parent short-stay.
+export type ClosureCaseType = 'shutdown' | 'mass_relocation';
+export type ClosureScopeType = 'room' | 'floor' | 'hostel';
+export type ClosureReasonCategory =
+  | 'semester_vacation'
+  | 'maintenance_renovation'
+  | 'safety'
+  | 'pest_treatment'
+  | 'low_occupancy_consolidation'
+  | 'emergency'
+  | 'event_operational'
+  | 'water_sanitation_failure'
+  | 'structural_work'
+  | 'disaster';
+export type ClosureCaseStatus =
+  | 'proposed'
+  | 'approved'
+  | 'rejected'
+  | 'active_closure'
+  | 'reopening_planned'
+  | 'reopened'
+  | 'completed'
+  | 'cancelled';
+
+export interface ReopeningChecklistItem {
+  completed: boolean;
+  completedBy?: string;
+  completedAt?: string;
+  notes?: string;
+}
+export type ReopeningChecklist = Record<string, ReopeningChecklistItem>;
+
+export type ClosureImpactOutcome = 'pending' | 'relocated' | 'checked_out' | 'on_leave' | 'exception_no_destination';
+
+export interface ClosureCaseImpact {
+  id: string;
+  closureCaseId: string;
+  studentId: string;
+  allocationId: string | null;
+  sourceBedId: string | null;
+  outcome: ClosureImpactOutcome;
+  destinationBedId: string | null;
+  newAllocationId: string | null;
+  notes: string | null;
+  reconciledAt: string | null;
+  reconciledBy: string | null;
+}
+
+export interface ClosureCase {
+  id: string;
+  hostelId: string;
+  caseType: ClosureCaseType;
+  scopeType: ClosureScopeType;
+  scopeId: string;
+  reasonCategory: ClosureReasonCategory;
+  reasonNotes: string | null;
+  status: ClosureCaseStatus;
+  plannedStartDate: string | null;
+  plannedEndDate: string | null;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
+  exceptionPolicy: string | null;
+  reopeningChecklist: ReopeningChecklist | null;
+  proposedBy: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  createdAt: string;
+  impacts?: ClosureCaseImpact[];
+}
+
+export type GuestType = 'parent' | 'visiting_faculty' | 'other';
+export type GuestStayStatus = 'reserved' | 'checked_in' | 'checked_out' | 'cancelled';
+
+export interface GuestStay {
+  id: string;
+  bedId: string;
+  guestName: string;
+  guestType: GuestType;
+  hostReference: string | null;
+  purpose: string | null;
+  arrivalDate: string;
+  departureDate: string | null;
+  identityVerified: boolean;
+  feeReference: string | null;
+  keyReference: string | null;
+  mealEntitlement: string | null;
+  policyAcknowledged: boolean;
+  status: GuestStayStatus;
+  checkoutNotes: string | null;
+  createdAt: string;
 }

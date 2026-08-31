@@ -123,8 +123,9 @@ export async function createBed(roomId: string, input: { code: string }) {
 
 /** flow.md §19 item 18 gap-closure, second pass — Bed was missed the first
  * time even though its `code` is exactly the same kind of plain display
- * label as Room's. */
-export async function updateBed(bedId: string, input: { code: string }) {
+ * label as Room's. bedCategory added for D17.25 item 89 (TODO.md Batch 22) —
+ * only takes effect while the bed is 'available' (backend-enforced). */
+export async function updateBed(bedId: string, input: { code?: string; bedCategory?: 'resident' | 'guest_short_stay' }) {
   const { bed } = await api.patch<{ bed: Bed }>(`/structure/beds/${bedId}`, input);
   return bed;
 }

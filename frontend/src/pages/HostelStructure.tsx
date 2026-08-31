@@ -944,6 +944,7 @@ function BedStatusSheet({
   onSaved: () => void;
 }) {
   const [code, setCode] = useState(bed.code);
+  const [bedCategory, setBedCategory] = useState<'resident' | 'guest_short_stay'>(bed.bedCategory);
   const [status, setStatus] = useState<'available' | 'blocked' | 'maintenance'>(
     bed.status === 'blocked' || bed.status === 'maintenance' ? bed.status : 'available'
   );
@@ -956,7 +957,10 @@ function BedStatusSheet({
     setSubmitting('code');
     setError(null);
     try {
-      await api.updateBed(bed.id, { code });
+      await api.updateBed(bed.id, {
+        ...(code !== bed.code && { code }),
+        ...(bedCategory !== bed.bedCategory && { bedCategory }),
+      });
       onSaved();
       onClose();
     } catch (err) {
@@ -991,9 +995,9 @@ function BedStatusSheet({
             variant="secondary"
             fullWidth
             onClick={() => void handleSaveCode()}
-            disabled={Boolean(submitting) || !code.trim() || code === bed.code}
+            disabled={Boolean(submitting) || !code.trim() || (code === bed.code && bedCategory === bed.bedCategory)}
           >
-            {submitting === 'code' ? 'Saving…' : 'Save code'}
+            {submitting === 'code' ? 'Saving…' : 'Save'}
           </Button>
           <Button fullWidth onClick={() => void handleSaveStatus()} disabled={Boolean(submitting) || !reason.trim()}>
             {submitting === 'status' ? 'Saving…' : 'Save status'}
@@ -1005,6 +1009,21 @@ function BedStatusSheet({
         {error && <Alert>{error}</Alert>}
         <FieldWrapper label="Code" htmlFor="bs-code">
           <Input id="bs-code" value={code} onChange={(e) => setCode(e.target.value)} maxLength={10} />
+        </FieldWrapper>
+        {/* D17.25 item 89 — a guest-category bed is excluded from ordinary
+            resident allocation entirely; only switchable while the bed is
+            'available' (backend-enforced, mirrored here as a disabled
+            control rather than a silently-rejected submit). */}
+        <FieldWrapper label="Category" htmlFor="bs-category" hint={bed.status !== 'available' ? `Bed must be Available to change this (currently ${bed.status})` : undefined}>
+          <Select
+            id="bs-category"
+            value={bedCategory}
+            onChange={(e) => setBedCategory(e.target.value as 'resident' | 'guest_short_stay')}
+            disabled={bed.status !== 'available'}
+          >
+            <option value="resident">Resident</option>
+            <option value="guest_short_stay">Guest short-stay</option>
+          </Select>
         </FieldWrapper>
         <p className="text-sm text-slate-600">
           Current status: <StatusPill status={bed.status} />

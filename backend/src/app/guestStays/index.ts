@@ -1,0 +1,1 @@
+export { guestStaysRouter } from './route';

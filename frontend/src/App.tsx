@@ -6,6 +6,7 @@ import { Allocations } from './pages/Allocations';
 import { Applications } from './pages/Applications';
 import { Cases } from './pages/Cases';
 import { Checkout } from './pages/Checkout';
+import { Closures } from './pages/Closures';
 import { Dashboard } from './pages/Dashboard';
 import { HostelStructure } from './pages/HostelStructure';
 import { Kitchen } from './pages/Kitchen';
@@ -88,6 +89,14 @@ function AuthenticatedApp() {
             element={
               <StaffOnly>
                 <DutyRoster />
+              </StaffOnly>
+            }
+          />
+          <Route
+            path="/closures"
+            element={
+              <StaffOnly>
+                <Closures />
               </StaffOnly>
             }
           />

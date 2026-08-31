@@ -6,6 +6,7 @@ import { ConflictError, ForbiddenError, NotFoundError } from '../../middlewares/
 import { redis } from '../../redis';
 import { recordAudit } from '../../utils/audit';
 import { notify, notifyCampusStaff } from '../../utils/notify';
+import * as closuresRepo from '../closures/repository';
 import * as safetyRepo from '../safety/repository';
 import { getSettings } from '../settings/service';
 import * as repo from './repository';
@@ -53,11 +54,20 @@ export async function createAllocation(user: AuthUser, input: z.infer<typeof cre
   if (bed.status !== 'available') {
     throw new ConflictError(`Bed is '${bed.status}', not available`);
   }
+  // D17.25 item 89 — a guest/parent short-stay bed is a genuinely separate
+  // pool, never consumable by ordinary resident allocation.
+  if (bed.bed_category !== 'resident') {
+    throw new ConflictError('This bed is reserved for guest short-stay use, not resident allocation');
+  }
   // D17.17 item 67 — a room-level safety block or a hostel-level safety
   // closure prevents new occupancy even on a bed that's otherwise
   // physically clean and free.
   const safetyBlock = await safetyRepo.findBedSafetyBlock(bed.id);
   if (safetyBlock.blocked) throw new ConflictError(safetyBlock.reason ?? 'This bed is under a safety block');
+  // D17.25 item 87 — a room/floor/hostel mid-closure blocks new occupancy
+  // the same way a safety block does, independent of the bed's own status.
+  const closureBlock = await closuresRepo.findClosureBlock(bed.id);
+  if (closureBlock.blocked) throw new ConflictError(closureBlock.reason ?? 'This bed is under an active closure');
 
   const settings = await getSettings(user.org_id);
   const checkInDeadline = new Date(Date.now() + settings.policyDefaults.checkInDeadlineHours * 60 * 60 * 1000);
@@ -411,10 +421,16 @@ export async function createOffer(user: AuthUser, input: z.infer<typeof createOf
   const bed = await db('beds').where({ id: input.bedId }).first();
   if (!bed) throw new NotFoundError('Bed');
   if (bed.status !== 'available') throw new ConflictError(`Bed is '${bed.status}', not available`);
+  if (bed.bed_category !== 'resident') {
+    throw new ConflictError('This bed is reserved for guest short-stay use, not resident allocation');
+  }
   if (await repo.findActiveBedHold(bed.id)) throw new ConflictError('Bed already has an active hold');
-  // D17.17 item 67 — same safety guard as createAllocation's direct path.
+  // D17.17 item 67 / D17.25 item 87 — same safety and closure guards as
+  // createAllocation's direct path.
   const safetyBlock = await safetyRepo.findBedSafetyBlock(bed.id);
   if (safetyBlock.blocked) throw new ConflictError(safetyBlock.reason ?? 'This bed is under a safety block');
+  const closureBlock = await closuresRepo.findClosureBlock(bed.id);
+  if (closureBlock.blocked) throw new ConflictError(closureBlock.reason ?? 'This bed is under an active closure');
 
   const settings = await getSettings(user.org_id);
   const deadlineHours = input.acceptDeadlineHours ?? settings.policyDefaults.offerAcceptDeadlineHours;

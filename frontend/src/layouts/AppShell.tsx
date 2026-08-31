@@ -116,6 +116,15 @@ const NAV_ITEMS: NavItem[] = [
     visible: (me) => isPlatformAdmin(me) || hasHostelRole(me, 'warden'),
     group: 'Safety & Services',
   },
+  // HOSTEL-GAP-ANALYSIS.md D17.25 (TODO.md Batch 22) — staff-only, same
+  // reasoning as the other new Batch 16-21 pages.
+  {
+    path: '/closures',
+    label: 'Closures & Guest Stays',
+    icon: BuildingIcon,
+    visible: (me) => isPlatformAdmin(me) || hasHostelRole(me, 'warden'),
+    group: 'Safety & Services',
+  },
   { path: '/mess', label: 'Mess', icon: UtensilsIcon, group: 'Safety & Services' },
   {
     path: '/kitchen',

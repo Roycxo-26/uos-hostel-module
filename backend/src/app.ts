@@ -25,6 +25,8 @@ import { roomAccessRouter } from './app/roomAccess';
 import { commonAreasRouter } from './app/commonAreas';
 import { grievancesRouter } from './app/grievances';
 import { operationalNoticesRouter } from './app/operationalNotices';
+import { closuresRouter } from './app/closures';
+import { guestStaysRouter } from './app/guestStays';
 import { auditRouter } from './app/audit';
 import { adminRouter } from './app/admin';
 import { meRouter } from './app/me';
@@ -76,6 +78,8 @@ export function createApp() {
   app.use('/common-areas', commonAreasRouter());
   app.use('/grievances', grievancesRouter());
   app.use('/operational-notices', operationalNoticesRouter());
+  app.use('/closures', closuresRouter());
+  app.use('/guest-stays', guestStaysRouter());
   app.use('/audit', auditRouter());
 
   // Required by @uos/auth's spec ("Required admin API endpoints" — the

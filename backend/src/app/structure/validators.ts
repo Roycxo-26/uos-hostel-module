@@ -96,7 +96,13 @@ export const createBedSchema = z.object({
 // of plain display label as Room's `code` (allocations/checkins reference
 // beds by their UUID, never by `code`, so renaming one is exactly as safe
 // as renaming a Room). This closes that inconsistency.
-export const updateBedSchema = createBedSchema.partial();
+//
+// D17.25 item 89 — bedCategory added here rather than a dedicated endpoint;
+// service.ts guards it to only apply while the bed is 'available', the same
+// "no occupancy implication" boundary this schema already draws for `code`.
+export const updateBedSchema = createBedSchema.partial().extend({
+  bedCategory: z.enum(['resident', 'guest_short_stay']).optional(),
+});
 
 // D17.01 item 43 — widened from ('active','inactive') to the shared
 // four-state lifecycle. `reason` is mandatory whenever leaving 'active'

@@ -1,0 +1,1 @@
+export { closuresRouter } from './route';

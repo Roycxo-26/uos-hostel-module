@@ -108,6 +108,14 @@ export async function seed(knex: Knex): Promise<void> {
     // Listing/acknowledging a delivered notice stays resident-initiated
     // (no permission needed).
     'operational_notice:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.25 (TODO.md Batch 22) — shutdown/mass-
+    // relocation bulk cases and guest/parent short-stay bookings. Staff-only,
+    // same reasoning as safety/room_access/common_area above; the extra
+    // head_warden-only decision step on a closure case is enforced inside
+    // closures/service.ts's decideClosureCase via authorizeApproval, not by
+    // a separate permission string.
+    'closure:manage',
+    'guest_stay:manage',
   ];
 
   await knex('hostel.role_permissions').insert([

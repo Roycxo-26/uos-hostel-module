@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import { ConflictError, NotFoundError } from '../../middlewares/errorHandler';
 import { recordAudit } from '../../utils/audit';
 import { resolveCampusId } from '../../utils/campusScope';
+import * as closuresRepo from '../closures/repository';
 import * as repo from './repository';
 import type {
   createBedSchema,
@@ -104,6 +105,22 @@ export async function updateHostel(user: AuthUser, hostelId: string, input: z.in
   const before = await repo.findHostel(hostelId);
   if (!before) throw new NotFoundError('Hostel');
   await recordCodeAliasIfRenamed(user, before.campus_id, 'hostel', hostelId, before.code, input.code);
+
+  // D17.25 item 88 — "a Hostel cannot be reopened merely by changing
+  // active=true". A direct status='active' write is rejected outright
+  // while an open closure case still covers this hostel; the only way back
+  // to 'active' is closures/service.ts's completeClosureCase, which checks
+  // the reopening-readiness checklist first. Repo-to-repo import
+  // (closures/repository.ts), matching this codebase's "no service imports
+  // another module's service" convention.
+  if (input.status === 'active' && before.status !== 'active') {
+    const openCase = await closuresRepo.findOpenCaseForHostel(hostelId);
+    if (openCase) {
+      throw new ConflictError(
+        `Cannot reopen this hostel by editing its status directly — it has an open ${openCase.case_type === 'shutdown' ? 'shutdown' : 'mass relocation'} case (status '${openCase.status}'). Complete that case's reopening checklist instead.`
+      );
+    }
+  }
 
   try {
     const after = await repo.updateHostel(hostelId, {
@@ -417,9 +434,18 @@ export async function updateBed(user: AuthUser, bedId: string, input: z.infer<ty
   if (!before) throw new NotFoundError('Bed');
   await recordCodeAliasIfRenamed(user, before.campus_id, 'bed', bedId, before.code, input.code);
 
+  // D17.25 item 89 — switching a bed's category is only safe while it's
+  // sitting 'available': a resident bed with someone on it can't silently
+  // become a guest bed, and a guest bed mid-stay can't silently become
+  // allocatable to a resident.
+  if (input.bedCategory !== undefined && input.bedCategory !== before.bed_category && before.status !== 'available') {
+    throw new ConflictError(`Cannot change bed category while the bed is '${before.status}' — it must be available first`);
+  }
+
   try {
     const after = await repo.updateBed(bedId, {
       ...(input.code !== undefined && { code: input.code }),
+      ...(input.bedCategory !== undefined && { bed_category: input.bedCategory }),
     });
     await recordAudit({
       orgId: user.org_id,

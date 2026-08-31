@@ -155,6 +155,26 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   under_maintenance: { label: 'Under Maintenance', tone: 'warning' },
   restored: { label: 'Restored', tone: 'success' },
   verified: { label: 'Verified', tone: 'success' },
+
+  // Closure case (D17.25, TODO.md Batch 22) — 'proposed'/'approved'/
+  // 'rejected'/'cancelled'/'completed' reuse entries above. 'reopened' is
+  // domain-scoped: bare `reopened` above already means Case's "Reopened"
+  // (bad — a resolved complaint reopening), tone danger; a closure case
+  // reopening is the opposite, a successful outcome.
+  active_closure: { label: 'Active Closure', tone: 'danger' },
+  reopening_planned: { label: 'Reopening Planned', tone: 'warning' },
+  'closure:reopened': { label: 'Reopened', tone: 'success' },
+
+  // Closure case impact outcome
+  relocated: { label: 'Relocated', tone: 'success' },
+  on_leave: { label: 'On Leave', tone: 'info' },
+  exception_no_destination: { label: 'Exception — No Destination', tone: 'danger' },
+
+  // Guest short-stay (D17.25 item 89) — 'reserved'/'cancelled' reuse
+  // entries above.
+  checked_in: { label: 'Checked In', tone: 'success' },
+  checked_out: { label: 'Checked Out', tone: 'neutral' },
+  pending: { label: 'Pending', tone: 'warning' },
 };
 
 function humanize(status: string): string {
@@ -164,7 +184,7 @@ function humanize(status: string): string {
     .join(' ');
 }
 
-export function StatusPill({ status, domain }: { status: string; domain?: 'movement' | 'key' | 'custody' }) {
+export function StatusPill({ status, domain }: { status: string; domain?: 'movement' | 'key' | 'custody' | 'closure' }) {
   const entry = (domain && STATUS_MAP[`${domain}:${status}`]) || STATUS_MAP[status] || { label: humanize(status), tone: 'neutral' as Tone };
   return (
     <span

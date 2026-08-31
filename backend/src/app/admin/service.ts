@@ -34,13 +34,24 @@ function toAdminUserRole(row: {
   };
 }
 
+// `leftJoin`, not `join` — the platform is dropping the foreign key from
+// `user_roles.user_id` into `shadow_users` (it was over-scoping every
+// module into a full directory copy; see the platform team's own writeup).
+// Once that FK is gone, a `user_roles` row can outlive its `shadow_users`
+// match — someone loses platform access before this module's own
+// access-loss handling exists to clean up their leftover role. An inner
+// `join` would have silently hidden that person from Manage Users entirely,
+// which is exactly backwards: a stale role with nobody able to see or
+// revoke it is worse than one shown with a placeholder name. `user_id`
+// deliberately still comes from `user_roles` (always present), not
+// `shadow_users` (would be null on an unmatched row).
 function baseQuery() {
   return db('user_roles')
-    .join('shadow_users', 'shadow_users.user_id', 'user_roles.user_id')
+    .leftJoin('shadow_users', 'shadow_users.user_id', 'user_roles.user_id')
     .select(
       'user_roles.user_id',
-      'shadow_users.name',
-      'shadow_users.email',
+      db.raw("COALESCE(shadow_users.name, 'Unknown (access removed)') as name"),
+      db.raw("COALESCE(shadow_users.email, '') as email"),
       'user_roles.campus_id',
       'user_roles.role',
       'user_roles.is_active',

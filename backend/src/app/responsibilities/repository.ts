@@ -14,12 +14,27 @@ export function findById(id: string) {
  * that's who a Room Head/Floor In-charge assignment actually targets — see
  * responsibilities/validators.ts's own createAssignmentSchema comment on why
  * these are resident-scoped grants, not staff ones.
+ *
+ * `leftJoin`, not `join` — the platform team is dropping the foreign key
+ * from `user_roles.user_id` to `shadow_users` (it was never meant to force
+ * every platform person into this module's own smaller user table; see
+ * their own writeup). Once that FK is gone, a `user_roles` row can outlive
+ * its matching `shadow_users` row (someone loses platform access before
+ * this module's own access-loss handling exists yet). An inner `join`
+ * would have silently dropped that person from the picker instead of
+ * showing them with a placeholder name — `id` deliberately comes from
+ * `user_roles.user_id` (always present), not `shadow_users.user_id`
+ * (would be null on an unmatched row).
  */
 export function listResidentCandidates() {
   return db('user_roles')
-    .join('shadow_users', 'shadow_users.user_id', 'user_roles.user_id')
+    .leftJoin('shadow_users', 'shadow_users.user_id', 'user_roles.user_id')
     .where({ 'user_roles.role': 'student', 'user_roles.is_active': true })
-    .select('shadow_users.user_id as id', 'shadow_users.name', 'shadow_users.email')
+    .select(
+      'user_roles.user_id as id',
+      db.raw("COALESCE(shadow_users.name, 'Unknown (access removed)') as name"),
+      db.raw("COALESCE(shadow_users.email, '') as email")
+    )
     .orderBy('shadow_users.name');
 }
 

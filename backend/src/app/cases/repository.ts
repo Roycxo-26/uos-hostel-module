@@ -46,13 +46,26 @@ export function listResidentDirectory() {
  * wrong list for it: a case can only be assigned to case-managing staff
  * (Warden/Head Warden), not any resident. Same query shape as
  * utils/notify.ts's notifyCampusStaff — active warden/head_warden role
- * holders on this campus, joined to shadow_users for a name to show. */
+ * holders on this campus, joined to shadow_users for a name to show.
+ *
+ * `leftJoin`, not `join` — see responsibilities/repository.ts's
+ * listResidentCandidates for the full reasoning: the platform is dropping
+ * the foreign key into shadow_users, so a `user_roles` row can outlive its
+ * `shadow_users` match. `id` comes from `user_roles.user_id` (always
+ * present), not `shadow_users.user_id` (null on an unmatched row) — an
+ * inner join would have silently hidden that staff member from the
+ * assignment picker instead of showing them with a placeholder name. */
 export function listCaseStaffDirectory(campusId: string) {
   return db('user_roles')
-    .join('shadow_users', 'shadow_users.user_id', 'user_roles.user_id')
+    .leftJoin('shadow_users', 'shadow_users.user_id', 'user_roles.user_id')
     .where({ 'user_roles.campus_id': campusId, 'user_roles.is_active': true })
     .whereIn('user_roles.role', ['warden', 'head_warden'])
-    .select('shadow_users.user_id as id', 'shadow_users.name', 'shadow_users.email', 'user_roles.role')
+    .select(
+      'user_roles.user_id as id',
+      db.raw("COALESCE(shadow_users.name, 'Unknown (access removed)') as name"),
+      db.raw("COALESCE(shadow_users.email, '') as email"),
+      'user_roles.role'
+    )
     .orderBy('shadow_users.name');
 }
 

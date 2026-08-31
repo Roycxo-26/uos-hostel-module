@@ -21,6 +21,7 @@ UOS_extracted.txt
 # uos-module-developer-bundle/ reference template) stays excluded too.
 *.md
 *.docx
+*.pdf
 !/README.md
 
 # Handover bundles are generated, never committed — a copy in the repo is a

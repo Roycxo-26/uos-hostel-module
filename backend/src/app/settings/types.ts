@@ -50,6 +50,15 @@ export interface PolicyDefaults {
   // movementReturnReminderMinutes above, applied to check-in instead).
   offerAcceptDeadlineHours: number;
   noShowWarningHoursBeforeDeadline: number;
+  // D17.10 depth (TODO.md Batch 23) — guardian-OTP timing and the staged
+  // overdue-escalation ladder, both explicitly asked to stay tenant-
+  // configurable by the policy that defined them ("These timings should
+  // remain configurable for future institutions").
+  guardianOtpExpiryMinutes: number;
+  guardianOtpMaxAttempts: number;
+  movementEscalation30mMinutes: number;
+  movementEscalation3hHours: number;
+  movementEscalation12hHours: number;
 }
 
 export interface TenantSettings {
@@ -99,6 +108,11 @@ export const DEFAULT_POLICY: PolicyDefaults = {
   movementReturnReminderMinutes: 15,
   offerAcceptDeadlineHours: 48,
   noShowWarningHoursBeforeDeadline: 24,
+  guardianOtpExpiryMinutes: 5,
+  guardianOtpMaxAttempts: 3,
+  movementEscalation30mMinutes: 30,
+  movementEscalation3hHours: 3,
+  movementEscalation12hHours: 12,
 };
 
 type StoredRow = {

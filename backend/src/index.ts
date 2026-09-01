@@ -10,7 +10,13 @@ import { createApp } from './app';
 import { expireAllocationOffersAllTenants, sendNoShowWarningsAllTenants } from './jobs/expireAllocationOffers';
 import { expireNoShowAllocationsAllTenants } from './jobs/expireNoShowAllocations';
 import { flagOverdueKeysAllTenants } from './jobs/flagOverdueKeys';
-import { flagOverdueMovementsAllTenants, sendMovementReturnRemindersAllTenants } from './jobs/flagOverdueMovements';
+import {
+  escalateOverdue12hAllTenants,
+  escalateOverdue30mAllTenants,
+  escalateOverdue3hAllTenants,
+  flagOverdueMovementsAllTenants,
+  sendMovementReturnRemindersAllTenants,
+} from './jobs/flagOverdueMovements';
 import { restoreTemporaryRelocationsAllTenants } from './jobs/restoreTemporaryRelocations';
 
 const MIGRATIONS_CONFIG = {
@@ -250,6 +256,25 @@ async function boot(): Promise<void> {
   }, OVERDUE_MOVEMENT_SWEEP_INTERVAL_MS);
   void sendMovementReturnRemindersAllTenants();
 
+  // D17.10 item 92 (TODO.md Batch 23) — the staged overdue-escalation
+  // ladder. Three separate timers, not one, so each tier's own idempotent
+  // flag column only ever gets checked/set at its own cadence — same
+  // stopgap-but-flagged reasoning as every sweep above.
+  const escalation30mSweepTimer = setInterval(() => {
+    void escalateOverdue30mAllTenants();
+  }, OVERDUE_MOVEMENT_SWEEP_INTERVAL_MS);
+  void escalateOverdue30mAllTenants();
+
+  const escalation3hSweepTimer = setInterval(() => {
+    void escalateOverdue3hAllTenants();
+  }, OVERDUE_MOVEMENT_SWEEP_INTERVAL_MS);
+  void escalateOverdue3hAllTenants();
+
+  const escalation12hSweepTimer = setInterval(() => {
+    void escalateOverdue12hAllTenants();
+  }, OVERDUE_MOVEMENT_SWEEP_INTERVAL_MS);
+  void escalateOverdue12hAllTenants();
+
   // Same stopgap-but-flagged reasoning as the two sweeps above — see
   // jobs/restoreTemporaryRelocations.ts for what this closes (UAT.md Batch
   // 10's temporary-relocation round-trip gap).
@@ -287,6 +312,9 @@ async function boot(): Promise<void> {
     clearInterval(noShowSweepTimer);
     clearInterval(overdueMovementSweepTimer);
     clearInterval(returnReminderSweepTimer);
+    clearInterval(escalation30mSweepTimer);
+    clearInterval(escalation3hSweepTimer);
+    clearInterval(escalation12hSweepTimer);
     clearInterval(tempRelocationRestoreTimer);
     clearInterval(offerExpirySweepTimer);
     clearInterval(noShowWarningSweepTimer);

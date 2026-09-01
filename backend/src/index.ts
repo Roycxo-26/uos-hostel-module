@@ -4,6 +4,7 @@ import path from 'node:path';
 import { assertBootConditions, createSyncListener } from '@uos/auth';
 import { validateEnv, isStandalone } from './config/env';
 import { registry } from './registry';
+import { writeRoleCatalogue, AUTO_GRANTED_ADMIN_ROLE } from './auth/roleCatalogue';
 import { redis } from './redis';
 import { createApp } from './app';
 import { expireAllocationOffersAllTenants, sendNoShowWarningsAllTenants } from './jobs/expireAllocationOffers';
@@ -79,6 +80,65 @@ function buildSync() {
             firstError ??= err;
           }
         }
+        // A platform admin gets a real, revocable hostel role rather than being
+        // waved through by their org_role at request time.
+        //
+        // This is the "Module authority is never inherited from org_role"
+        // decision: the module must never read org_role to decide what someone
+        // may do, because an account-management role would silently become
+        // business authority. Instead the platform's answer is materialised once
+        // here, as a row that can be listed, revoked on its own, and explained.
+        //
+        // ASSUMPTION TO REVIEW: campus and org admins receive `head_warden`.
+        // That is the highest hostel role, and it matches what an administrator
+        // of the campus would be expected to do — but which role an admin should
+        // land on is a product decision about hostel, not a platform one. Change
+        // the constant if warden is the better fit.
+        const adminRoles = ['org_admin', 'campus_admin', 'super_admin'];
+        const campusIds = moduleAssignments.map((a) => a.campusId);
+
+        if (adminRoles.includes(data.orgRole) && data.status === 'active') {
+          for (const campusId of campusIds) {
+            await db('user_roles')
+              .insert({
+                user_id: data.userId,
+                campus_id: campusId,
+                role: AUTO_GRANTED_ADMIN_ROLE,
+                is_active: true,
+              })
+              // Never clobbers a deliberate assignment — if someone has already
+              // been given a role here by a human, theirs stands.
+              .onConflict(['user_id', 'campus_id'])
+              .ignore();
+          }
+        } else {
+          // The revoking half, and it only covers part of the problem — stated
+          // plainly because an auto-grant that outlives its justification is
+          // worse than no auto-grant at all.
+          //
+          // WORKS: someone who still reaches hostel but is no longer an admin.
+          // Their user event still arrives, and this removes the role.
+          //
+          // DOES NOT WORK: someone who loses hostel access entirely. That is the
+          // common case for an admin, because admins reach modules by role
+          // rather than by an explicit grant — so demoting one removes their
+          // reach, and `/sync/events` filters out the very event that would have
+          // said so. Verified: demoting an org_admin emitted event 182 and this
+          // module's cursor never advanced past 181.
+          //
+          // The mechanism that CAN see it is the reconcile pass, which fetches
+          // the authoritative list of who currently reaches this module — anyone
+          // held locally but absent from it has lost access. This module does
+          // not implement that diff yet, so a stale head_warden row can survive
+          // until it does.
+          //
+          // Deletes only rows matching the auto-granted role, so a warden who
+          // was deliberately appointed keeps their appointment.
+          await db('user_roles')
+            .where({ user_id: data.userId, role: AUTO_GRANTED_ADMIN_ROLE })
+            .delete();
+        }
+
         // Surface a failure so the event still gets retried/dead-lettered — the
         // rows that did succeed above are already committed (onConflict merge
         // is idempotent, so a retry won't reinsert them).
@@ -116,6 +176,19 @@ async function boot(): Promise<void> {
     throw new Error(`migration halted at org ${migration.failed.orgId}: ${migration.failed.error.message}`);
   }
   console.log(`[${process.env.MODULE_NAME}] migrated ${migration.succeeded.length} known tenant(s)`);
+
+  // Roles and permissions, into every tenant, on every boot. Migrations create
+  // the tables; nothing was filling them, so a freshly provisioned tenant had an
+  // empty role_levels and every permission check failed silently. See
+  // auth/roleCatalogue.ts — this is the "ensure default hostel roles" call the
+  // seed's own header asks for.
+  let catalogued = 0;
+  for (const orgId of registry.knownOrgIds()) {
+    catalogued = await writeRoleCatalogue(registry.adminDb(orgId));
+  }
+  console.log(
+    `[${process.env.MODULE_NAME}] role catalogue written to ${registry.knownOrgIds().length} tenant(s) (${catalogued} permissions)`
+  );
 
   await assertBootConditions({
     registry,

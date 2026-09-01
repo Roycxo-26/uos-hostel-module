@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { TenantSettingsProvider } from './context/TenantSettingsContext';
 import { Allocations } from './pages/Allocations';
 import { Applications } from './pages/Applications';
+import { SsoCallback } from './pages/SsoCallback';
 import { Cases } from './pages/Cases';
 import { Checkout } from './pages/Checkout';
 import { Closures } from './pages/Closures';
@@ -135,6 +136,13 @@ function AuthenticatedApp() {
 
 function Root() {
   const { user } = useAuth();
+
+  // Checked before the sign-in branch below, not inside AuthenticatedApp's
+  // Routes. The platform lands here with no token stored yet, so anything that
+  // renders only once a user exists would show the login screen instead of
+  // consuming the handoff.
+  if (window.location.pathname === '/sso-callback') return <SsoCallback />;
+
   return user ? <AuthenticatedApp /> : <Login />;
 }
 

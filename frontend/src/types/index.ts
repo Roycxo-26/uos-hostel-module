@@ -417,7 +417,21 @@ export interface TransferRequest {
 
 // --- Movement (UOS HOSTEL BR.md §8 — Gate Pass / Leave, merged) ---
 
-export type MovementType = 'gate_pass' | 'leave';
+// D17.10 depth (TODO.md Batch 23) — twelve BRD movement types; see the
+// backend migration's own comment for what was deliberately left out.
+export type MovementType =
+  | 'gate_pass'
+  | 'leave'
+  | 'night_out'
+  | 'weekend_leave'
+  | 'vacation_leave'
+  | 'academic_field_visit'
+  | 'official_university_movement'
+  | 'medical_leave'
+  | 'emergency_leave'
+  | 'extended_leave'
+  | 'late_return_extension'
+  | 'mass_holiday_leave';
 export type MovementStatus = 'requested' | 'approved' | 'rejected' | 'cancelled' | 'out' | 'returned' | 'overdue';
 
 export interface MovementRequest {
@@ -436,7 +450,67 @@ export interface MovementRequest {
   decidedAt: string | null;
   actualExitAt: string | null;
   actualReturnAt: string | null;
+  guardianId: string | null;
+  requestVersion: number;
+  effectiveReturn: string | null;
+  guardianConfirmationBypassed: boolean;
+  guardianConfirmationBypassReason: string | null;
+  escalated30mAt: string | null;
+  escalated3hAt: string | null;
+  escalated12hAt: string | null;
   createdAt: string;
+}
+
+export interface ResidentGuardian {
+  id: string;
+  studentId: string;
+  name: string;
+  relationship: string;
+  mobileNumber: string;
+  isPrimary: boolean;
+  verified: boolean;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+}
+
+export type GuardianConfirmationMethod = 'otp' | 'call';
+export type GuardianConfirmationStatus = 'pending' | 'verified' | 'declined' | 'expired' | 'failed' | 'invalidated';
+
+export interface MovementGuardianConfirmation {
+  id: string;
+  movementRequestId: string;
+  requestVersion: number;
+  method: GuardianConfirmationMethod;
+  otpExpiresAt: string | null;
+  otpAttemptCount: number;
+  otpMaxAttempts: number;
+  callOutcome: 'approve' | 'decline' | null;
+  callRemark: string | null;
+  callGuardianId: string | null;
+  status: GuardianConfirmationStatus;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  createdAt: string;
+}
+
+export type ExtensionStatus = 'pending' | 'approved' | 'rejected';
+
+export interface MovementExtensionRequest {
+  id: string;
+  movementRequestId: string;
+  requestedNewReturn: string;
+  reason: string;
+  status: ExtensionStatus;
+  createdBy: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  createdAt: string;
+}
+
+export interface MovementRequestDetail extends MovementRequest {
+  confirmations: MovementGuardianConfirmation[];
+  extensions: MovementExtensionRequest[];
 }
 
 // --- Headcount (UOS HOSTEL BR.md §8) ---
@@ -470,15 +544,26 @@ export interface HeadcountSession {
 
 // --- Cases: Complaints / Incidents / Discipline (UOS HOSTEL BR.md §9) ---
 
-export type CaseType = 'complaint' | 'incident';
+// D17.09 depth (TODO.md Batch 24) — welfare_concern/safeguarding_concern
+// are a restricted access tier, not just two more labels — see
+// CaseAccessGrant below and Cases.tsx's own handling.
+export type CaseType = 'complaint' | 'incident' | 'welfare_concern' | 'safeguarding_concern';
 export type CaseSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type CaseStatus = 'reported' | 'assigned' | 'in_progress' | 'resolved' | 'notice_issued' | 'decided' | 'appealed' | 'closed' | 'reopened';
-export type DecisionOutcome = 'upheld' | 'dismissed' | 'other';
+export type DecisionOutcome = 'upheld' | 'dismissed' | 'other' | 'informal_resolution' | 'warning' | 'support_plan' | 'formal_discipline';
 
 export interface CaseEvidence {
   url: string;
   caption?: string;
 }
+
+export interface MissingResidentChecklistItem {
+  completed: boolean;
+  completedBy?: string;
+  completedAt?: string;
+  notes?: string;
+}
+export type MissingResidentChecklist = Record<string, MissingResidentChecklistItem>;
 
 export interface Case {
   id: string;
@@ -502,7 +587,38 @@ export interface Case {
   appealReason: string | null;
   deskTicketReference: { status: string } | null;
   reopenReason: string | null;
+  followUpDueAt: string | null;
+  missingResidentChecklist: MissingResidentChecklist | null;
+  emergencyRestrictionActive: boolean;
+  emergencyRestrictionReason: string | null;
+  emergencyRestrictionImposedBy: string | null;
+  emergencyRestrictionImposedAt: string | null;
+  emergencyRestrictionReviewDueAt: string | null;
+  emergencyRestrictionReviewedAt: string | null;
+  emergencyRestrictionReviewedBy: string | null;
+  emergencyRestrictionReviewOutcome: 'continued' | 'lifted' | null;
   createdAt: string;
+  accessGrants?: CaseAccessGrant[];
+  /** Only present on the single-case GET response — D17.09 depth's own
+   * per-case access check, since a plain "isStaff" flag no longer decides
+   * whether the action panels show for a welfare/safeguarding case. */
+  canManage?: boolean;
+  readOnly?: boolean;
+}
+
+export type CaseAccessRoleLabel = 'security_officer' | 'medical_officer' | 'dean_committee' | 'privacy_legal_auditor';
+
+export interface CaseAccessGrant {
+  id: string;
+  caseId: string;
+  grantedToUserId: string;
+  roleLabel: CaseAccessRoleLabel;
+  readOnly: boolean;
+  purpose: string | null;
+  grantedBy: string;
+  grantedAt: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
 }
 
 // --- Checkout (UOS HOSTEL BR.md §10) ---
@@ -861,6 +977,12 @@ export interface MyRights {
 
 // D17.22 (TODO.md Batch 21) — duty roster + operational notices.
 export type DutyPrivilegeType = 'duty_warden' | 'floor_duty_officer' | 'front_desk_shift' | 'security_contact' | 'emergency_contact';
+
+// D17.09 depth (TODO.md Batch 24) — the four standing safeguarding roles.
+// Kept distinct from DutyPrivilegeType above: same underlying table, but a
+// standing appointment (open-ended, hostel-scoped), not a defined-window
+// shift — see backend's createSafeguardingAssignmentSchema.
+export type SafeguardingPrivilegeType = 'safeguarding_lead' | 'safeguarding_deputy' | 'welfare_officer' | 'counsellor';
 
 export interface DutyResolution {
   privilegeType: DutyPrivilegeType;

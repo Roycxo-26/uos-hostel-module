@@ -83,3 +83,35 @@ export function update(id: string, data: Record<string, unknown>) {
     .returning('*')
     .then((rows) => rows[0]);
 }
+
+// --- D17.09 items 96/99 — case-specific, time-bound access grants ---------
+
+export function createAccessGrant(data: Record<string, unknown>) {
+  return db('case_access_grants').insert(data).returning('*').then((rows) => rows[0]);
+}
+
+export function findAccessGrantById(id: string) {
+  return db('case_access_grants').where({ id }).first();
+}
+
+export function listAccessGrantsForCase(caseId: string) {
+  return db('case_access_grants').where({ case_id: caseId }).orderBy('granted_at', 'desc');
+}
+
+/** The check `canManageThisCase` actually runs — an unrevoked,
+ * unexpired grant for THIS user on THIS case. */
+export function findActiveAccessGrant(caseId: string, userId: string) {
+  return db('case_access_grants')
+    .where({ case_id: caseId, granted_to_user_id: userId })
+    .whereNull('revoked_at')
+    .andWhere((qb) => qb.whereNull('expires_at').orWhere('expires_at', '>', db.fn.now()))
+    .first();
+}
+
+export function revokeAccessGrant(id: string, revokedBy: string) {
+  return db('case_access_grants')
+    .where({ id })
+    .update({ revoked_at: db.fn.now(), revoked_by: revokedBy, updated_at: db.fn.now() })
+    .returning('*')
+    .then((rows) => rows[0]);
+}

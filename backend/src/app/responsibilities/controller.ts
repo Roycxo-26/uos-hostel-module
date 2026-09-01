@@ -2,12 +2,28 @@ import { Request, Response, NextFunction } from 'express';
 import { created, success } from '../../utils/response';
 import * as service from './service';
 import type { PrivilegeType } from './types';
-import { createAssignmentSchema, createDutyAssignmentSchema, listAssignmentsQuerySchema, revokeAssignmentSchema, setSubstituteSchema } from './validators';
+import {
+  createAssignmentSchema,
+  createDutyAssignmentSchema,
+  createSafeguardingAssignmentSchema,
+  listAssignmentsQuerySchema,
+  revokeAssignmentSchema,
+  setSubstituteSchema,
+} from './validators';
 
 export async function createAssignment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = createAssignmentSchema.parse(req.body);
     created(res, { assignment: await service.createAssignment(req.user, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createSafeguardingAssignment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = createSafeguardingAssignmentSchema.parse(req.body);
+    created(res, { assignment: await service.createSafeguardingAssignment(req.user, input) });
   } catch (err) {
     next(err);
   }

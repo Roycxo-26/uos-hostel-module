@@ -107,3 +107,31 @@ export function findActiveHolder(privilegeType: string, scopeType: string, scope
 export function listActiveHeadWardens(campusId: string) {
   return db('user_roles').where({ campus_id: campusId, role: 'head_warden', is_active: true }).select('user_id');
 }
+
+// D17.09 depth (TODO.md Batch 24) — the four STANDING safeguarding roles
+// (Designated/Deputy Safeguarding Lead, Welfare Officer, Counsellor),
+// reusing this same table exactly like the duty-roster privilege types
+// already do. Deliberately NOT scope-matched like hasActive()/
+// findActiveHolder() above — a safeguarding team membership is a standing,
+// campus-wide authority, not tied to one specific room/floor/hostel scope
+// row the way Room Head/Floor In-charge assignments are; whichever scope
+// the assignment happened to be recorded against doesn't narrow who it
+// covers.
+
+export function findActiveSafeguardingRole(userId: string, privilegeTypes: string[]) {
+  return db('responsibility_assignments')
+    .where({ assignee_user_id: userId, status: 'active' })
+    .whereIn('privilege_type', privilegeTypes)
+    .andWhere('effective_from', '<=', db.fn.now())
+    .andWhere((qb) => qb.whereNull('effective_to').orWhere('effective_to', '>=', db.fn.now()))
+    .first('id');
+}
+
+export function listActiveSafeguardingRoleHolders(privilegeTypes: string[]) {
+  return db('responsibility_assignments')
+    .where({ status: 'active' })
+    .whereIn('privilege_type', privilegeTypes)
+    .andWhere('effective_from', '<=', db.fn.now())
+    .andWhere((qb) => qb.whereNull('effective_to').orWhere('effective_to', '>=', db.fn.now()))
+    .distinct('assignee_user_id');
+}

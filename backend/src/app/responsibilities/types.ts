@@ -6,6 +6,11 @@
 // roster roles added on top of this same primitive, not a parallel
 // table: effective_from/effective_to already model a duty window, and
 // substitute_user_id already models backup/acting authority.
+// D17.09 depth (TODO.md Batch 24) — the four STANDING safeguarding roles,
+// same "reuse this table, don't build a parallel one" precedent as the
+// five duty-roster roles above. See cases/service.ts's own comment on why
+// these are treated as campus-wide standing authority rather than scope-
+// matched like Room Head/Floor In-charge.
 export type PrivilegeType =
   | 'attendance_taker'
   | 'verifier'
@@ -15,7 +20,11 @@ export type PrivilegeType =
   | 'floor_duty_officer'
   | 'front_desk_shift'
   | 'security_contact'
-  | 'emergency_contact';
+  | 'emergency_contact'
+  | 'safeguarding_lead'
+  | 'safeguarding_deputy'
+  | 'welfare_officer'
+  | 'counsellor';
 
 // The BRD's own escalation ladder — resolveDutyAuthority (service.ts)
 // walks this in order.

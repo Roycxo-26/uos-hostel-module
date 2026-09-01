@@ -22,7 +22,34 @@ import {
 import { AlertIcon, CloseIcon } from '../design-system/icons';
 import type { Column } from '../design-system';
 import { errorMessage } from '../lib/errorMessage';
-import { hasHostelRole, isPlatformAdmin, type Case, type CaseEvidence, type CaseStatus, type CaseType } from '../types';
+import { hasHostelRole, isPlatformAdmin, type Case, type CaseAccessRoleLabel, type CaseEvidence, type CaseStatus, type CaseType } from '../types';
+
+const WELFARE_CASE_TYPES = new Set<CaseType>(['welfare_concern', 'safeguarding_concern']);
+
+const CASE_ACCESS_ROLE_LABELS: Record<CaseAccessRoleLabel, string> = {
+  security_officer: 'Security/Safety Officer',
+  medical_officer: 'Medical Officer',
+  dean_committee: 'Dean/Registrar/Committee (referral)',
+  privacy_legal_auditor: 'Privacy/Legal/Auditor (read-only)',
+};
+
+const MISSING_RESIDENT_CHECKLIST_LABELS: Record<string, string> = {
+  roommate_check: 'Roommate check',
+  medical_reference_check: 'Medical reference check',
+};
+
+function caseTypeLabel(caseType: CaseType): string {
+  switch (caseType) {
+    case 'incident':
+      return 'Incident';
+    case 'welfare_concern':
+      return 'Welfare Concern';
+    case 'safeguarding_concern':
+      return 'Safeguarding Concern';
+    default:
+      return 'Complaint';
+  }
+}
 
 /**
  * ux-flow.md §3.3 "Hostel Complaint form" / "Complaint tracker", §9.3
@@ -74,7 +101,7 @@ export function Cases() {
 
   const columns: Column<Case>[] = [
     { key: 'category', header: 'Category', primary: true, render: (c) => c.category },
-    { key: 'type', header: 'Type', render: (c) => (c.caseType === 'incident' ? 'Incident' : 'Complaint') },
+    { key: 'type', header: 'Type', render: (c) => caseTypeLabel(c.caseType) },
     { key: 'status', header: 'Status', render: (c) => <StatusPill status={c.status} /> },
     { key: 'created', header: 'Reported', render: (c) => new Date(c.createdAt).toLocaleDateString() },
   ];
@@ -249,9 +276,9 @@ function ReportCaseSheet({
         category,
         description,
         roomId: roomId || undefined,
-        subjectUserId: caseType === 'incident' && subjectUserId ? subjectUserId : undefined,
+        subjectUserId: caseType !== 'complaint' && subjectUserId ? subjectUserId : undefined,
         evidence,
-        confidential,
+        confidential: WELFARE_CASE_TYPES.has(caseType) ? true : confidential,
       });
       onReported();
       onClose();
@@ -285,8 +312,16 @@ function ReportCaseSheet({
           <Select id="case-type" value={caseType} onChange={(e) => setCaseType(e.target.value as CaseType)}>
             <option value="complaint">Room / service complaint</option>
             <option value="incident">Incident / safety concern</option>
+            <option value="welfare_concern">Welfare concern</option>
+            <option value="safeguarding_concern">Safeguarding concern</option>
           </Select>
         </FieldWrapper>
+        {WELFARE_CASE_TYPES.has(caseType) && (
+          <Alert>
+            This goes to a small, restricted safeguarding team only — not the general Warden pool — and stays visible to you
+            and them throughout.
+          </Alert>
+        )}
         <FieldWrapper label="Category" htmlFor="case-category" required hint="e.g. plumbing, electrical, noise, safety, discipline">
           <Input id="case-category" value={category} onChange={(e) => setCategory(e.target.value)} />
         </FieldWrapper>
@@ -306,11 +341,11 @@ function ReportCaseSheet({
         <FieldWrapper label="Evidence" htmlFor="case-evidence" hint="Photo or video links">
           <EvidenceEditor value={evidence} onChange={setEvidence} />
         </FieldWrapper>
-        {caseType === 'incident' && (
+        {caseType !== 'complaint' && (
           <FieldWrapper
             label="Concerns (optional)"
             htmlFor="case-subject"
-            hint="If this incident is about someone other than you, name them here — they, not you, will see any disciplinary notice/decision"
+            hint="If this is about someone other than you, name them here — they, not you, will see any disciplinary notice/decision"
           >
             <Select id="case-subject" value={subjectUserId} onChange={(e) => setSubjectUserId(e.target.value)} disabled={loadingResidents}>
               <option value="">{loadingResidents ? 'Loading…' : 'Nobody in particular'}</option>
@@ -361,6 +396,25 @@ function CaseDetailSheet({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // D17.09 depth (TODO.md Batch 24) — the row passed in from the list is
+  // the pre-access-check shape; welfare/safeguarding cases need the real
+  // per-case `canManage`/`readOnly`/`accessGrants` the single-GET endpoint
+  // now returns, so this sheet always re-fetches on open rather than
+  // trusting the row it was handed.
+  const [detail, setDetail] = useState<Case>(caseItem);
+  const isRestricted = WELFARE_CASE_TYPES.has(detail.caseType);
+  const canManage = isRestricted ? Boolean(detail.canManage) : isStaff;
+  const isReadOnly = Boolean(detail.readOnly);
+
+  async function refresh() {
+    setDetail(await casesApi.getCase(caseItem.id));
+  }
+
+  useEffect(() => {
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseItem.id]);
+
   // Staff triage fields
   const [severity, setSeverity] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
   const [assignedTo, setAssignedTo] = useState('');
@@ -368,34 +422,58 @@ function CaseDetailSheet({
   const [loadingStaff, setLoadingStaff] = useState(false);
 
   useEffect(() => {
-    if (!isStaff || caseItem.status !== 'reported') return;
+    if (!canManage || detail.status !== 'reported') return;
     setLoadingStaff(true);
     void casesApi.listCaseStaffDirectory().then((staff) => {
       setStaffOptions(staff);
       setLoadingStaff(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStaff, caseItem.status]);
+  }, [canManage, detail.status]);
   // Investigation / resolution / notice / decision / appeal / reopen fields
   const [notes, setNotes] = useState('');
   const [noticeText, setNoticeText] = useState('');
-  const [decisionOutcome, setDecisionOutcome] = useState<'upheld' | 'dismissed' | 'other'>('upheld');
+  const [decisionOutcome, setDecisionOutcome] = useState<
+    'upheld' | 'dismissed' | 'other' | 'informal_resolution' | 'warning' | 'support_plan' | 'formal_discipline'
+  >('upheld');
   const [decisionReason, setDecisionReason] = useState('');
+  const [followUpDueAt, setFollowUpDueAt] = useState('');
   const [appealReason, setAppealReason] = useState('');
   const [reopenReason, setReopenReason] = useState('');
 
-  const isReporter = caseItem.reporterUserId === currentUserId;
+  // D17.09 items 96/99 — restricted-tier access grants
+  const [grantUserId, setGrantUserId] = useState('');
+  const [grantRole, setGrantRole] = useState<CaseAccessRoleLabel>('security_officer');
+  const [grantReadOnly, setGrantReadOnly] = useState(false);
+  const [grantPurpose, setGrantPurpose] = useState('');
+  const [grantExpiresAt, setGrantExpiresAt] = useState('');
+  const [residentOptions, setResidentOptions] = useState<casesApi.ResidentDirectoryEntry[]>([]);
+
+  useEffect(() => {
+    if (!isRestricted || !canManage) return;
+    void casesApi.listResidentDirectory().then(setResidentOptions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRestricted, canManage]);
+
+  // D17.09 item 99 — emergency privilege restriction
+  const [restrictionReason, setRestrictionReason] = useState('');
+  const [restrictionReviewHours, setRestrictionReviewHours] = useState('24');
+  const [reviewOutcome, setReviewOutcome] = useState<'continued' | 'lifted'>('lifted');
+  const [reviewNotes, setReviewNotes] = useState('');
+
+  const isReporter = detail.reporterUserId === currentUserId;
   // Same fix as the backend's appealCase — a decision concerns the subject
   // of an incident, not just whoever reported it; both can appeal.
-  const isSubject = caseItem.subjectUserId === currentUserId;
+  const isSubject = detail.subjectUserId === currentUserId;
 
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>, closeAfter = true) {
     setSubmitting(true);
     setError(null);
     try {
       await action();
       onChanged();
-      onClose();
+      if (closeAfter) onClose();
+      else await refresh();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -403,40 +481,202 @@ function CaseDetailSheet({
     }
   }
 
+  const caseItemForRender = detail;
+
   return (
-    <Sheet open onClose={onClose} title={caseItem.category}>
+    <Sheet open onClose={onClose} title={caseItemForRender.category}>
       <div className="space-y-4">
         {error && <Alert>{error}</Alert>}
 
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
-            <StatusPill status={caseItem.status} />
-            <span className="text-slate-500">{caseItem.caseType === 'incident' ? 'Incident' : 'Complaint'}</span>
-            {caseItem.confidential && <span className="text-xs font-medium text-rose-600">Confidential</span>}
+            <StatusPill status={caseItemForRender.status} />
+            <span className="text-slate-500">{caseTypeLabel(caseItemForRender.caseType)}</span>
+            {caseItemForRender.confidential && <span className="text-xs font-medium text-rose-600">Confidential</span>}
+            {isReadOnly && <span className="text-xs font-medium text-amber-600">Read-only access</span>}
           </div>
-          <p className="text-slate-700">{caseItem.description}</p>
-          {caseItem.deskTicketReference && (
-            <p className="text-slate-500">Desk ticket: {caseItem.deskTicketReference.status} (stub reference — no live Desk system yet)</p>
+          <p className="text-slate-700">{caseItemForRender.description}</p>
+          {caseItemForRender.deskTicketReference && (
+            <p className="text-slate-500">Desk ticket: {caseItemForRender.deskTicketReference.status} (stub reference — no live Desk system yet)</p>
           )}
-          {caseItem.severity && <p className="text-slate-500">Severity: {caseItem.severity}</p>}
-          {caseItem.investigationNotes && <p className="text-slate-500">Notes: {caseItem.investigationNotes}</p>}
-          {caseItem.noticeText && <p className="text-slate-500">Notice: {caseItem.noticeText}</p>}
-          {caseItem.decisionOutcome && (
+          {caseItemForRender.severity && <p className="text-slate-500">Severity: {caseItemForRender.severity}</p>}
+          {caseItemForRender.investigationNotes && <p className="text-slate-500">Notes: {caseItemForRender.investigationNotes}</p>}
+          {caseItemForRender.noticeText && <p className="text-slate-500">Notice: {caseItemForRender.noticeText}</p>}
+          {caseItemForRender.decisionOutcome && (
             <p className="text-slate-500">
-              Decision: {caseItem.decisionOutcome} — {caseItem.decisionReason}
+              Decision: {caseItemForRender.decisionOutcome.replace(/_/g, ' ')} — {caseItemForRender.decisionReason}
+              {caseItemForRender.followUpDueAt && ` (follow-up due ${new Date(caseItemForRender.followUpDueAt).toLocaleDateString()})`}
             </p>
           )}
-          {caseItem.appealReason && <p className="text-slate-500">Appeal: {caseItem.appealReason}</p>}
-          {caseItem.reopenReason && <p className="text-slate-500">Reopened: {caseItem.reopenReason}</p>}
+          {caseItemForRender.appealReason && <p className="text-slate-500">Appeal: {caseItemForRender.appealReason}</p>}
+          {caseItemForRender.reopenReason && <p className="text-slate-500">Reopened: {caseItemForRender.reopenReason}</p>}
         </div>
+
+        {isRestricted && !canManage && (
+          <Alert>You can see this case because you reported it or it concerns you. Only the safeguarding team can act on it.</Alert>
+        )}
+
+        {isRestricted && detail.missingResidentChecklist && (
+          <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <p className="text-xs font-medium text-slate-700">Missing-resident checklist</p>
+            {Object.entries(MISSING_RESIDENT_CHECKLIST_LABELS).map(([key, label]) => (
+              <label key={key} className="flex min-h-touch cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(detail.missingResidentChecklist?.[key]?.completed)}
+                  disabled={!canManage || isReadOnly || Boolean(submitting)}
+                  onChange={(e) =>
+                    void run(() => casesApi.updateMissingResidentChecklist(detail.id, key, e.target.checked), false)
+                  }
+                  className="h-4 w-4 rounded border-slate-300 text-accent"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        )}
+
+        {isRestricted && detail.emergencyRestrictionActive && (
+          <Alert tone="warning">
+            Emergency restriction active: {detail.emergencyRestrictionReason}
+            {detail.emergencyRestrictionReviewDueAt && ` — review due ${new Date(detail.emergencyRestrictionReviewDueAt).toLocaleString()}`}
+          </Alert>
+        )}
+        {isRestricted && !detail.emergencyRestrictionActive && detail.emergencyRestrictionReviewOutcome && (
+          <p className="text-xs text-slate-500">
+            Last restriction review: {detail.emergencyRestrictionReviewOutcome} (
+            {detail.emergencyRestrictionReviewedAt && new Date(detail.emergencyRestrictionReviewedAt).toLocaleString()})
+          </p>
+        )}
+        {isRestricted && canManage && !isReadOnly && !detail.emergencyRestrictionActive && (
+          <div className="space-y-2 rounded-lg border border-rose-200 bg-rose-50 p-3">
+            <p className="text-xs font-medium text-rose-800">Impose emergency privilege restriction</p>
+            <Textarea placeholder="Reason" value={restrictionReason} onChange={(e) => setRestrictionReason(e.target.value)} />
+            <Input
+              type="number"
+              min={1}
+              max={720}
+              value={restrictionReviewHours}
+              onChange={(e) => setRestrictionReviewHours(e.target.value)}
+              placeholder="Mandatory review, hours from now"
+            />
+            <Button
+              size="sm"
+              variant="danger"
+              fullWidth
+              disabled={!restrictionReason.trim() || Boolean(submitting)}
+              onClick={() =>
+                void run(
+                  () => casesApi.imposeEmergencyRestriction(detail.id, restrictionReason, Number(restrictionReviewHours)),
+                  false
+                )
+              }
+            >
+              Impose restriction
+            </Button>
+          </div>
+        )}
+        {isRestricted && canManage && !isReadOnly && detail.emergencyRestrictionActive && (
+          <div className="space-y-2 rounded-lg border border-rose-200 bg-rose-50 p-3">
+            <p className="text-xs font-medium text-rose-800">Mandatory restriction review</p>
+            <Select value={reviewOutcome} onChange={(e) => setReviewOutcome(e.target.value as typeof reviewOutcome)}>
+              <option value="lifted">Lift restriction</option>
+              <option value="continued">Continue restriction</option>
+            </Select>
+            <Textarea placeholder="Review notes" value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} />
+            <Button
+              size="sm"
+              fullWidth
+              disabled={!reviewNotes.trim() || Boolean(submitting)}
+              onClick={() => void run(() => casesApi.reviewEmergencyRestriction(detail.id, reviewOutcome, reviewNotes), false)}
+            >
+              Record review
+            </Button>
+          </div>
+        )}
+
+        {isRestricted && canManage && (
+          <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <p className="text-xs font-medium text-slate-700">Case team access</p>
+            {(detail.accessGrants ?? []).length === 0 ? (
+              <p className="text-xs text-slate-500">Nobody else has been granted access yet.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {(detail.accessGrants ?? []).map((g) => (
+                  <li key={g.id} className="flex items-center justify-between gap-2 text-xs">
+                    <span className={g.revokedAt ? 'text-slate-400 line-through' : 'text-slate-700'}>
+                      {CASE_ACCESS_ROLE_LABELS[g.roleLabel]} — {g.grantedToUserId.slice(0, 8)}
+                      {g.expiresAt && ` (until ${new Date(g.expiresAt).toLocaleDateString()})`}
+                    </span>
+                    {!g.revokedAt && !isReadOnly && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={Boolean(submitting)}
+                        onClick={() => void run(() => casesApi.revokeCaseAccess(g.id, 'Revoked from case detail'), false)}
+                      >
+                        Revoke
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!isReadOnly && (
+              <div className="space-y-1.5 border-t border-slate-200 pt-2">
+                <Select value={grantUserId} onChange={(e) => setGrantUserId(e.target.value)}>
+                  <option value="">Grant access to…</option>
+                  {residentOptions.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.email})
+                    </option>
+                  ))}
+                </Select>
+                <Select value={grantRole} onChange={(e) => setGrantRole(e.target.value as CaseAccessRoleLabel)}>
+                  {Object.entries(CASE_ACCESS_ROLE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+                <Input placeholder="Purpose (required)" value={grantPurpose} onChange={(e) => setGrantPurpose(e.target.value)} />
+                <Input type="datetime-local" value={grantExpiresAt} onChange={(e) => setGrantExpiresAt(e.target.value)} placeholder="Expires (optional)" />
+                <label className="flex min-h-touch cursor-pointer items-center gap-2 text-xs text-slate-700">
+                  <input type="checkbox" checked={grantReadOnly} onChange={(e) => setGrantReadOnly(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-accent" />
+                  Read-only
+                </label>
+                <Button
+                  size="sm"
+                  fullWidth
+                  disabled={!grantUserId || !grantPurpose.trim() || Boolean(submitting)}
+                  onClick={() =>
+                    void run(
+                      () =>
+                        casesApi.grantCaseAccess(detail.id, {
+                          userId: grantUserId,
+                          roleLabel: grantRole,
+                          readOnly: grantReadOnly,
+                          purpose: grantPurpose,
+                          expiresAt: grantExpiresAt ? new Date(grantExpiresAt).toISOString() : undefined,
+                        }),
+                      false
+                    )
+                  }
+                >
+                  Grant access
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Staff: triage a freshly reported OR reopened case — a reopened
             case goes through the same re-triage step, severity/assignee
             both reconsidered rather than assumed still valid (see
             TRIAGEABLE_FROM's own comment in cases/service.ts) */}
-        {isStaff && (caseItem.status === 'reported' || caseItem.status === 'reopened') && (
+        {canManage && !isReadOnly && (detail.status === 'reported' || detail.status === 'reopened') && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
-            <p className="text-sm font-medium text-slate-800">Triage{caseItem.status === 'reopened' ? ' (reopened)' : ''}</p>
+            <p className="text-sm font-medium text-slate-800">Triage{detail.status === 'reopened' ? ' (reopened)' : ''}</p>
             <FieldWrapper label="Severity" htmlFor="cd-severity">
               <Select id="cd-severity" value={severity} onChange={(e) => setSeverity(e.target.value as typeof severity)}>
                 <option value="low">Low</option>
@@ -455,27 +695,27 @@ function CaseDetailSheet({
                 ))}
               </Select>
             </FieldWrapper>
-            <Button fullWidth disabled={submitting || !assignedTo.trim()} onClick={() => void run(() => casesApi.triageCase(caseItem.id, { severity, assignedTo }))}>
+            <Button fullWidth disabled={submitting || !assignedTo.trim()} onClick={() => void run(() => casesApi.triageCase(detail.id, { severity, assignedTo }))}>
               Assign
             </Button>
           </div>
         )}
 
-        {/* Staff: start investigation */}
-        {isStaff && caseItem.status === 'assigned' && (
+        {/* Start investigation */}
+        {canManage && !isReadOnly && detail.status === 'assigned' && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <p className="text-sm font-medium text-slate-800">Start investigation</p>
             <FieldWrapper label="Notes" htmlFor="cd-notes" required>
               <Textarea id="cd-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </FieldWrapper>
-            <Button fullWidth disabled={submitting || !notes.trim()} onClick={() => void run(() => casesApi.investigateCase(caseItem.id, notes))}>
+            <Button fullWidth disabled={submitting || !notes.trim()} onClick={() => void run(() => casesApi.investigateCase(detail.id, notes))}>
               Begin investigation
             </Button>
           </div>
         )}
 
-        {/* Staff: resolve, or move to discipline */}
-        {isStaff && caseItem.status === 'in_progress' && (
+        {/* Resolve, or move to discipline */}
+        {canManage && !isReadOnly && detail.status === 'in_progress' && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <p className="text-sm font-medium text-slate-800">Outcome</p>
             <FieldWrapper label="Notes (if resolving)" htmlFor="cd-notes2">
@@ -495,10 +735,10 @@ function CaseDetailSheet({
               <Textarea id="cd-notice" value={noticeText} onChange={(e) => setNoticeText(e.target.value)} />
             </FieldWrapper>
             <div className="flex gap-2">
-              <Button variant="secondary" fullWidth disabled={submitting} onClick={() => void run(() => casesApi.resolveCase(caseItem.id, notes || undefined))}>
+              <Button variant="secondary" fullWidth disabled={submitting} onClick={() => void run(() => casesApi.resolveCase(detail.id, notes || undefined))}>
                 Resolve
               </Button>
-              <Button fullWidth disabled={submitting || !noticeText.trim()} onClick={() => void run(() => casesApi.issueNotice(caseItem.id, noticeText))}>
+              <Button fullWidth disabled={submitting || !noticeText.trim()} onClick={() => void run(() => casesApi.issueNotice(detail.id, noticeText))}>
                 Issue disciplinary notice
               </Button>
             </div>
@@ -506,23 +746,40 @@ function CaseDetailSheet({
         )}
 
         {/* Decide (notice_issued or appealed) — backend requires Head Warden authority */}
-        {isStaff && (caseItem.status === 'notice_issued' || caseItem.status === 'appealed') && (
+        {canManage && !isReadOnly && (detail.status === 'notice_issued' || detail.status === 'appealed') && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <Alert tone="warning">Discipline decision — requires {headWardenLabel} authority (or an active delegation).</Alert>
             <FieldWrapper label="Outcome" htmlFor="cd-outcome">
               <Select id="cd-outcome" value={decisionOutcome} onChange={(e) => setDecisionOutcome(e.target.value as typeof decisionOutcome)}>
                 <option value="upheld">Upheld</option>
                 <option value="dismissed">Dismissed</option>
+                <option value="informal_resolution">Informal resolution</option>
+                <option value="warning">Warning</option>
+                <option value="support_plan">Support plan (needs a follow-up date)</option>
+                <option value="formal_discipline">Formal discipline</option>
                 <option value="other">Other</option>
               </Select>
             </FieldWrapper>
+            {decisionOutcome === 'support_plan' && (
+              <FieldWrapper label="Follow-up review due" htmlFor="cd-followup" required>
+                <Input id="cd-followup" type="datetime-local" value={followUpDueAt} onChange={(e) => setFollowUpDueAt(e.target.value)} />
+              </FieldWrapper>
+            )}
             <FieldWrapper label="Reason" htmlFor="cd-reason" required>
               <Textarea id="cd-reason" value={decisionReason} onChange={(e) => setDecisionReason(e.target.value)} />
             </FieldWrapper>
             <Button
               fullWidth
-              disabled={submitting || !decisionReason.trim()}
-              onClick={() => void run(() => casesApi.decideCase(caseItem.id, { decisionOutcome, decisionReason }))}
+              disabled={submitting || !decisionReason.trim() || (decisionOutcome === 'support_plan' && !followUpDueAt)}
+              onClick={() =>
+                void run(() =>
+                  casesApi.decideCase(detail.id, {
+                    decisionOutcome,
+                    decisionReason,
+                    followUpDueAt: decisionOutcome === 'support_plan' ? new Date(followUpDueAt).toISOString() : undefined,
+                  })
+                )
+              }
             >
               Record decision
             </Button>
@@ -531,44 +788,44 @@ function CaseDetailSheet({
 
         {/* Reporter or subject: appeal a decision — the subject is who a
             discipline decision actually concerns, not just whoever reported it */}
-        {(isReporter || isSubject) && caseItem.status === 'decided' && (
+        {(isReporter || isSubject) && detail.status === 'decided' && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <p className="text-sm font-medium text-slate-800">Appeal this decision</p>
             <FieldWrapper label="Reason" htmlFor="cd-appeal" required>
               <Textarea id="cd-appeal" value={appealReason} onChange={(e) => setAppealReason(e.target.value)} />
             </FieldWrapper>
-            <Button fullWidth disabled={submitting || !appealReason.trim()} onClick={() => void run(() => casesApi.appealCase(caseItem.id, appealReason))}>
+            <Button fullWidth disabled={submitting || !appealReason.trim()} onClick={() => void run(() => casesApi.appealCase(detail.id, appealReason))}>
               Submit appeal
             </Button>
           </div>
         )}
 
         {/* Reporter: acknowledge a resolution -> closes it (ux-flow.md §3.3) */}
-        {isReporter && !isStaff && caseItem.status === 'resolved' && (
+        {isReporter && !canManage && detail.status === 'resolved' && (
           <div className="border-t border-slate-200 pt-4">
-            <Button fullWidth disabled={submitting} onClick={() => void run(() => casesApi.closeCase(caseItem.id))}>
+            <Button fullWidth disabled={submitting} onClick={() => void run(() => casesApi.closeCase(detail.id))}>
               Acknowledge resolution
             </Button>
           </div>
         )}
 
         {/* Staff: administrative close */}
-        {isStaff && (caseItem.status === 'resolved' || caseItem.status === 'decided') && (
+        {canManage && !isReadOnly && (detail.status === 'resolved' || detail.status === 'decided') && (
           <div className="border-t border-slate-200 pt-4">
-            <Button variant="secondary" fullWidth disabled={submitting} onClick={() => void run(() => casesApi.closeCase(caseItem.id))}>
+            <Button variant="secondary" fullWidth disabled={submitting} onClick={() => void run(() => casesApi.closeCase(detail.id))}>
               Close case
             </Button>
           </div>
         )}
 
         {/* Reporter or staff: reopen */}
-        {(isReporter || isStaff) && caseItem.status === 'closed' && (
+        {(isReporter || (canManage && !isReadOnly)) && detail.status === 'closed' && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <p className="text-sm font-medium text-slate-800">Reopen</p>
             <FieldWrapper label="Reason" htmlFor="cd-reopen" required>
               <Textarea id="cd-reopen" value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} />
             </FieldWrapper>
-            <Button variant="danger" fullWidth disabled={submitting || !reopenReason.trim()} onClick={() => void run(() => casesApi.reopenCase(caseItem.id, reopenReason))}>
+            <Button variant="danger" fullWidth disabled={submitting || !reopenReason.trim()} onClick={() => void run(() => casesApi.reopenCase(detail.id, reopenReason))}>
               Reopen
             </Button>
           </div>

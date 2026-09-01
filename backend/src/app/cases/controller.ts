@@ -4,13 +4,18 @@ import * as service from './service';
 import {
   appealCaseSchema,
   decideCaseSchema,
+  grantCaseAccessSchema,
+  imposeEmergencyRestrictionSchema,
   investigateCaseSchema,
   issueNoticeSchema,
   listCasesQuerySchema,
   reopenCaseSchema,
   reportCaseSchema,
   resolveCaseSchema,
+  reviewEmergencyRestrictionSchema,
+  revokeCaseAccessSchema,
   triageCaseSchema,
+  updateMissingResidentChecklistSchema,
 } from './validators';
 
 export async function reportCase(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -121,6 +126,57 @@ export async function reopenCase(req: Request, res: Response, next: NextFunction
   try {
     const input = reopenCaseSchema.parse(req.body);
     success(res, { case: await service.reopenCase(req.user, req.params.caseId, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- D17.09 items 96/99 — case-specific access grants ---------------------
+
+export async function grantCaseAccess(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = grantCaseAccessSchema.parse(req.body);
+    created(res, { grant: await service.grantCaseAccess(req.user, req.params.caseId, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function revokeCaseAccess(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = revokeCaseAccessSchema.parse(req.body);
+    success(res, { grant: await service.revokeCaseAccess(req.user, req.params.grantId, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- D17.09 item 98 — missing-resident checklist ---------------------------
+
+export async function updateMissingResidentChecklist(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = updateMissingResidentChecklistSchema.parse(req.body);
+    success(res, { case: await service.updateMissingResidentChecklist(req.user, req.params.caseId, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- D17.09 item 99 — emergency privilege restriction ----------------------
+
+export async function imposeEmergencyRestriction(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = imposeEmergencyRestrictionSchema.parse(req.body);
+    success(res, { case: await service.imposeEmergencyRestriction(req.user, req.params.caseId, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reviewEmergencyRestriction(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = reviewEmergencyRestrictionSchema.parse(req.body);
+    success(res, { case: await service.reviewEmergencyRestriction(req.user, req.params.caseId, input) });
   } catch (err) {
     next(err);
   }

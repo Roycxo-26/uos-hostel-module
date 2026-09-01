@@ -74,3 +74,23 @@ export const createDutyAssignmentSchema = z
     message: 'A substitute cannot be the same person as the primary assignee',
     path: ['substituteUserId'],
   });
+
+// D17.09 depth (TODO.md Batch 24) — a third schema, deliberately: the four
+// standing safeguarding roles are open-ended standing appointments (like
+// Room Head/Floor In-charge above), not a defined-window shift (like the
+// duty-roster roles just above), but they're campus-wide authority (like
+// the duty-roster roles), not room/floor-scoped (like Room Head/Floor
+// In-charge) — neither existing schema's pairing rule fits.
+export const createSafeguardingAssignmentSchema = z
+  .object({
+    assigneeUserId: z.string().uuid(),
+    privilegeType: z.enum(['safeguarding_lead', 'safeguarding_deputy', 'welfare_officer', 'counsellor']),
+    scopeType: z.literal('hostel'),
+    scopeId: z.string().uuid(),
+    effectiveFrom: z.string().datetime().optional(),
+    effectiveTo: z.string().datetime().optional(),
+  })
+  .refine((v) => !v.effectiveTo || !v.effectiveFrom || v.effectiveTo > v.effectiveFrom, {
+    message: 'effectiveTo must be after effectiveFrom',
+    path: ['effectiveTo'],
+  });

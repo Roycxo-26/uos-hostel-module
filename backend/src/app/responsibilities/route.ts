@@ -20,6 +20,10 @@ export function responsibilitiesRouter(): Router {
   r.get('/duty/coverage', canAssign, controller.getCoverageValidation);
   r.get('/duty/resolve/:privilegeType', canAssign, controller.resolveDutyAuthority);
 
+  // D17.09 depth (TODO.md Batch 24) — assigning the standing safeguarding
+  // team, same permission gate as every other assignment above.
+  r.post('/safeguarding', canAssign, controller.createSafeguardingAssignment);
+
   r.get('/:assignmentId', canAssign, controller.getAssignment);
   r.post('/:assignmentId/revoke', canAssign, controller.revokeAssignment);
   r.post('/:assignmentId/substitute', canAssign, controller.setSubstitute);

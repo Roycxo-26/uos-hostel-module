@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { CoverageValidation, DutyPrivilegeType, DutyResolution } from '../types';
+import type { CoverageValidation, DutyPrivilegeType, DutyResolution, SafeguardingPrivilegeType } from '../types';
 import type { ResponsibilityAssignment } from './responsibilities';
 
 export async function createDutyAssignment(input: {
@@ -24,6 +24,21 @@ export async function resolveDutyAuthority(privilegeType: DutyPrivilegeType, sco
     `/responsibilities/duty/resolve/${privilegeType}?scopeType=${scopeType}&scopeId=${scopeId}`
   );
   return resolution;
+}
+
+// D17.09 depth (TODO.md Batch 24) — assigns a standing safeguarding role.
+export async function createSafeguardingAssignment(input: {
+  assigneeUserId: string;
+  privilegeType: SafeguardingPrivilegeType;
+  scopeId: string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+}) {
+  const { assignment } = await api.post<{ assignment: ResponsibilityAssignment }>('/responsibilities/safeguarding', {
+    ...input,
+    scopeType: 'hostel',
+  });
+  return assignment;
 }
 
 export async function listDutyAssignments(scopeType?: string, scopeId?: string) {

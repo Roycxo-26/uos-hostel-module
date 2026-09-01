@@ -19,7 +19,16 @@ import {
 } from '../design-system';
 import { AlertIcon } from '../design-system/icons';
 import { errorMessage } from '../lib/errorMessage';
-import type { CoverageValidation, DutyPrivilegeType, Hostel, NoticeScopeType, NoticeSeverity, OperationalNotice, ResidentEmergencyCard } from '../types';
+import type {
+  CoverageValidation,
+  DutyPrivilegeType,
+  Hostel,
+  NoticeScopeType,
+  NoticeSeverity,
+  OperationalNotice,
+  ResidentEmergencyCard,
+  SafeguardingPrivilegeType,
+} from '../types';
 import type { ResponsibilityAssignment } from '../api/responsibilities';
 
 /** HOSTEL-GAP-ANALYSIS.md D17.22 (TODO.md Batch 21) — who's on duty right
@@ -42,6 +51,15 @@ const DUTY_LABELS: Record<DutyPrivilegeType, string> = {
   security_contact: 'Security Contact',
   emergency_contact: 'Emergency Contact',
 };
+
+// D17.09 depth (TODO.md Batch 24).
+const SAFEGUARDING_LABELS: Record<SafeguardingPrivilegeType, string> = {
+  safeguarding_lead: 'Designated Safeguarding Lead',
+  safeguarding_deputy: 'Deputy Safeguarding Lead',
+  welfare_officer: 'Student Welfare Officer',
+  counsellor: 'Counsellor',
+};
+const SAFEGUARDING_PRIVILEGE_TYPES = Object.keys(SAFEGUARDING_LABELS) as SafeguardingPrivilegeType[];
 
 type Tab = 'roster' | 'notices' | 'emergency-card';
 
@@ -94,6 +112,10 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
   const [coverage, setCoverage] = useState<CoverageValidation | null>(null);
   const [loading, setLoading] = useState(true);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [assignSafeguardingOpen, setAssignSafeguardingOpen] = useState(false);
+
+  const dutyAssignments = assignments.filter((a) => a.privilegeType in DUTY_LABELS);
+  const safeguardingAssignments = assignments.filter((a) => SAFEGUARDING_PRIVILEGE_TYPES.includes(a.privilegeType as SafeguardingPrivilegeType));
 
   async function load(id: string) {
     if (!id) return;
@@ -127,7 +149,12 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
             </Select>
           </FieldWrapper>
         </div>
-        <Button onClick={() => setAssignOpen(true)}>Assign duty</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setAssignSafeguardingOpen(true)}>
+            Assign safeguarding role
+          </Button>
+          <Button onClick={() => setAssignOpen(true)}>Assign duty</Button>
+        </div>
       </div>
 
       {loading ? (
@@ -156,12 +183,12 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
             </Card>
           )}
 
-          {assignments.length === 0 ? (
+          {dutyAssignments.length === 0 ? (
             <EmptyState icon={<AlertIcon className="h-8 w-8" />} title="No active duty assignments" description="Assign duty above." />
           ) : (
             <Card>
               <ul className="divide-y divide-slate-100">
-                {assignments.map((a) => (
+                {dutyAssignments.map((a) => (
                   <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm sm:px-5">
                     <div>
                       <p className="font-medium text-slate-900">{DUTY_LABELS[a.privilegeType as DutyPrivilegeType] ?? a.privilegeType}</p>
@@ -178,10 +205,42 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
               </ul>
             </Card>
           )}
+
+          {/* D17.09 depth (TODO.md Batch 24) — the standing safeguarding
+              team, kept visually separate from the duty roster above: this
+              is who gets restricted access to welfare/safeguarding cases
+              (see cases/service.ts's canManageWelfareCase), not a shift. */}
+          <h2 className="mb-3 mt-8 text-sm font-semibold text-slate-900">Safeguarding team</h2>
+          {safeguardingAssignments.length === 0 ? (
+            <EmptyState
+              icon={<AlertIcon className="h-8 w-8" />}
+              title="No standing safeguarding team members"
+              description="Assign one above — without at least one, a welfare/safeguarding case has nobody to notify."
+            />
+          ) : (
+            <Card>
+              <ul className="divide-y divide-slate-100">
+                {safeguardingAssignments.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm sm:px-5">
+                    <div>
+                      <p className="font-medium text-slate-900">{SAFEGUARDING_LABELS[a.privilegeType as SafeguardingPrivilegeType] ?? a.privilegeType}</p>
+                      <p className="text-xs text-slate-500">{residentNames[a.assigneeUserId] ?? a.assigneeUserId.slice(0, 8)}</p>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {new Date(a.effectiveFrom).toLocaleString()} – {a.effectiveTo ? new Date(a.effectiveTo).toLocaleString() : 'open'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </>
       )}
 
       {assignOpen && hostelId && <AssignDutySheet hostelId={hostelId} onClose={() => setAssignOpen(false)} onAssigned={() => load(hostelId)} />}
+      {assignSafeguardingOpen && hostelId && (
+        <AssignSafeguardingSheet hostelId={hostelId} onClose={() => setAssignSafeguardingOpen(false)} onAssigned={() => load(hostelId)} />
+      )}
     </div>
   );
 }
@@ -272,6 +331,91 @@ function AssignDutySheet({ hostelId, onClose, onAssigned }: { hostelId: string; 
           </FieldWrapper>
           <FieldWrapper label="To" htmlFor="ad-to" required>
             <Input id="ad-to" type="datetime-local" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} />
+          </FieldWrapper>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+/** D17.09 depth (TODO.md Batch 24) — a standing appointment, not a shift:
+ * open-ended by default (matches Room Head/Floor In-charge's own open-
+ * ended shape), no substitute concept, always hostel-scoped. Separate
+ * from AssignDutySheet above rather than a shared form with conditional
+ * fields — the two have different required-field shapes entirely
+ * (mandatory window vs. optional window, backup vs. no backup). */
+function AssignSafeguardingSheet({ hostelId, onClose, onAssigned }: { hostelId: string; onClose: () => void; onAssigned: () => void }) {
+  const [staff, setStaff] = useState<{ id: string; name: string }[]>([]);
+  const [privilegeType, setPrivilegeType] = useState<SafeguardingPrivilegeType>('safeguarding_lead');
+  const [assigneeUserId, setAssigneeUserId] = useState('');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [effectiveTo, setEffectiveTo] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    void casesApi.listCaseStaffDirectory().then(setStaff);
+  }, []);
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await dutyApi.createSafeguardingAssignment({
+        assigneeUserId,
+        privilegeType,
+        scopeId: hostelId,
+        effectiveFrom: effectiveFrom ? new Date(effectiveFrom).toISOString() : undefined,
+        effectiveTo: effectiveTo ? new Date(effectiveTo).toISOString() : undefined,
+      });
+      onAssigned();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="Assign a safeguarding role"
+      footer={
+        <Button fullWidth onClick={() => void handleSubmit()} disabled={submitting || !assigneeUserId}>
+          {submitting ? 'Assigning…' : 'Assign'}
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+        <Alert>This grants restricted access to welfare/safeguarding cases — not the general Warden case-management pool.</Alert>
+        <FieldWrapper label="Role" htmlFor="as-role">
+          <Select id="as-role" value={privilegeType} onChange={(e) => setPrivilegeType(e.target.value as SafeguardingPrivilegeType)}>
+            {Object.entries(SAFEGUARDING_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+        </FieldWrapper>
+        <FieldWrapper label="Assigned to" htmlFor="as-assignee" required>
+          <Select id="as-assignee" value={assigneeUserId} onChange={(e) => setAssigneeUserId(e.target.value)}>
+            <option value="">Select staff</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </FieldWrapper>
+        <div className="grid grid-cols-2 gap-3">
+          <FieldWrapper label="From" htmlFor="as-from" hint="Optional — defaults to now">
+            <Input id="as-from" type="datetime-local" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+          </FieldWrapper>
+          <FieldWrapper label="To" htmlFor="as-to" hint="Optional — open-ended if blank">
+            <Input id="as-to" type="datetime-local" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} />
           </FieldWrapper>
         </div>
       </div>

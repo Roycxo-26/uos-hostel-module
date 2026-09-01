@@ -30,5 +30,16 @@ export function casesRouter(): Router {
   r.post('/:caseId/close', controller.closeCase);
   r.post('/:caseId/reopen', controller.reopenCase);
 
+  // D17.09 depth (TODO.md Batch 24) — no route-level canManage gate on any
+  // of these: the restricted-tier check (canManageWelfareCase, standing
+  // safeguarding role or an active case-specific grant) is genuinely
+  // narrower than the ordinary case:manage permission and lives entirely
+  // in service.ts, same reasoning as decide's own missing gate above.
+  r.post('/:caseId/access-grants', controller.grantCaseAccess);
+  r.post('/access-grants/:grantId/revoke', controller.revokeCaseAccess);
+  r.post('/:caseId/missing-resident-checklist', controller.updateMissingResidentChecklist);
+  r.post('/:caseId/emergency-restriction', controller.imposeEmergencyRestriction);
+  r.post('/:caseId/emergency-restriction/review', controller.reviewEmergencyRestriction);
+
   return r;
 }

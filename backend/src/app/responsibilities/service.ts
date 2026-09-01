@@ -11,6 +11,7 @@ import { DUTY_PRIVILEGE_TYPES, type PrivilegeType } from './types';
 import type {
   createAssignmentSchema,
   createDutyAssignmentSchema,
+  createSafeguardingAssignmentSchema,
   listAssignmentsQuerySchema,
   revokeAssignmentSchema,
   setSubstituteSchema,
@@ -31,6 +32,10 @@ const PRIVILEGE_LABELS: Record<PrivilegeType, string> = {
   front_desk_shift: 'Front Desk Shift',
   security_contact: 'Security Contact',
   emergency_contact: 'Emergency Contact',
+  safeguarding_lead: 'Designated Safeguarding Lead',
+  safeguarding_deputy: 'Deputy Safeguarding Lead',
+  welfare_officer: 'Student Welfare Officer',
+  counsellor: 'Counsellor',
 };
 
 /** BR §2: Room Head is scoped to a room, Floor/Side In-charge to a floor —
@@ -237,6 +242,51 @@ export async function createDutyAssignment(user: AuthUser, input: z.infer<typeof
       link: '/movement',
     });
   }
+
+  return row;
+}
+
+/** D17.09 depth (TODO.md Batch 24) — assigns one of the four standing
+ * safeguarding roles cases/service.ts's canManageWelfareCase checks for.
+ * Same shape as createAssignment above, kept as its own function rather
+ * than widening that one's type (its privilegeType<->scopeType refine is
+ * specific to Room Head/Floor In-charge, and this schema's own open/
+ * standing-appointment semantics don't share it) — see
+ * createSafeguardingAssignmentSchema's own comment. */
+export async function createSafeguardingAssignment(user: AuthUser, input: z.infer<typeof createSafeguardingAssignmentSchema>) {
+  const scope = await validateScope(input.scopeType, input.scopeId);
+
+  const row = await repo.create({
+    org_id: user.org_id,
+    campus_id: scope.campus_id,
+    assignee_user_id: input.assigneeUserId,
+    privilege_type: input.privilegeType,
+    scope_type: input.scopeType,
+    scope_id: input.scopeId,
+    effective_from: input.effectiveFrom ? new Date(input.effectiveFrom) : db.fn.now(),
+    effective_to: input.effectiveTo ? new Date(input.effectiveTo) : null,
+    assigned_by: user.sub,
+    status: 'active',
+  });
+
+  await recordAudit({
+    orgId: user.org_id,
+    campusId: scope.campus_id,
+    actorUserId: user.sub,
+    action: 'responsibility.safeguarding_assigned',
+    entityType: 'responsibility_assignment',
+    entityId: row.id,
+    after: row,
+  });
+
+  await notify({
+    orgId: user.org_id,
+    campusId: scope.campus_id,
+    userId: input.assigneeUserId,
+    type: 'responsibility.safeguarding_assigned',
+    title: `You've been assigned ${PRIVILEGE_LABELS[input.privilegeType]} — restricted welfare/safeguarding case access`,
+    link: '/cases',
+  });
 
   return row;
 }

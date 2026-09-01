@@ -42,18 +42,34 @@ export const ROLE_LEVELS: ReadonlyArray<{ role: string; level: number }> = [
   { role: 'head_warden', level: 50 },
 ];
 
-// Kept in the same order and with the same intent as the seed, which cites
-// flow.md for each. Head Warden is Warden plus structure configuration.
+// Kept in the same order and with the same intent as the seed
+// (seeds/001_hostel_permissions.ts), which cites flow.md/the gap ledger for
+// each one — this list must stay a mirror of that one, not a snapshot of it.
+// It fell behind once already (see git history on this file): eight
+// permissions absent entirely (checkin:create, transfer:decide, audit:view,
+// safety:manage, occupancy_verification:manage, room_access:manage,
+// common_area:manage, operational_notice:manage) and 'movement:decide' where
+// every route actually checks 'movement:manage' — both silent on a live
+// tenant, since a missing/wrong permission string fails closed with no
+// error, not a crash. Head Warden is Warden plus structure configuration.
 const WARDEN_PERMISSIONS: readonly string[] = [
   'application:decide',
   'allocation:create',
   'allocation:manage_noshow',
-  'movement:decide',
+  'checkin:create',
+  'transfer:decide',
+  'responsibility:assign',
+  'movement:manage',
+  'headcount:manage',
   'case:manage',
   'checkout:manage',
+  'audit:view',
+  'safety:manage',
+  'occupancy_verification:manage',
+  'room_access:manage',
+  'common_area:manage',
   'grievance:manage',
-  'responsibility:assign',
-  'headcount:manage',
+  'operational_notice:manage',
   'closure:manage',
   'guest_stay:manage',
 ];

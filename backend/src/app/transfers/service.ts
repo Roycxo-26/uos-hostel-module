@@ -8,7 +8,13 @@ import { recordAudit } from '../../utils/audit';
 import { authorizeApproval, recordApprovalResolution } from '../../utils/approvalResolution';
 import { notify, notifyCampusStaff } from '../../utils/notify';
 import * as repo from './repository';
-import type { cancelTransferSchema, decideTransferSchema, executeTransferSchema, requestTransferSchema } from './validators';
+import type {
+  acceptDestinationTransferSchema,
+  cancelTransferSchema,
+  decideTransferSchema,
+  executeTransferSchema,
+  requestTransferSchema,
+} from './validators';
 
 function isUniqueViolation(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
@@ -53,6 +59,19 @@ export async function requestTransfer(user: AuthUser, input: z.infer<typeof requ
   const existingActive = await repo.findActiveForAllocation(allocation.id);
   if (existingActive) throw new ConflictError('A transfer is already in progress for this allocation');
 
+  // D17.07 item 101 — a genuinely different campus, and one that actually
+  // exists (shadow_campuses is sync-owned; a typo'd or stale id would
+  // otherwise silently create an unreachable transfer, visible to nobody
+  // once the widened RLS policy's OR clause never matches anyone's
+  // session).
+  if (input.destinationCampusId) {
+    if (input.destinationCampusId === allocation.campus_id) {
+      throw new ValidationError('destinationCampusId must be a different campus from the resident\'s current one — this is a same-campus transfer otherwise');
+    }
+    const destination = await db('shadow_campuses').where({ campus_id: input.destinationCampusId }).first('campus_id');
+    if (!destination) throw new NotFoundError('Destination campus');
+  }
+
   try {
     const row = await repo.create({
       org_id: user.org_id,
@@ -64,6 +83,8 @@ export async function requestTransfer(user: AuthUser, input: z.infer<typeof requ
       transfer_type: input.transferType,
       retrospective_review_deadline: input.retrospectiveReviewDeadline ? new Date(input.retrospectiveReviewDeadline) : null,
       is_temporary: input.isTemporary,
+      change_category: input.changeCategory ?? null,
+      destination_campus_id: input.destinationCampusId ?? null,
     });
 
     // flow.md §6.2B: CheckedInActive -> TransferPending — blocks e.g.
@@ -95,6 +116,14 @@ export async function requestTransfer(user: AuthUser, input: z.infer<typeof requ
     if (isUniqueViolation(err)) throw new ConflictError('A transfer is already in progress for this allocation');
     throw err;
   }
+}
+
+/** D17.07 item 101 — every other campus in the org, for the destination
+ * picker on a cross-campus transfer request. Staff-only (mirrors
+ * listCaseStaffDirectory's own reasoning) — a resident requesting their
+ * own transfer never needs to know the full campus list. */
+export async function listDestinationCampuses(user: AuthUser) {
+  return repo.listCampuses(user.org_id, user.campus_id);
 }
 
 export async function listTransfers(user: AuthUser, filters: { status?: string }) {
@@ -185,6 +214,62 @@ export async function decideTransfer(user: AuthUser, transferId: string, input: 
 }
 
 /**
+ * D17.07 item 101 — the destination campus's own acceptance step, distinct
+ * from decideTransfer's source-Warden decision. Only meaningful (and only
+ * reachable) for a cross-campus transfer — a same-campus one has no
+ * destination_campus_id, so there's nobody else who needs to accept it;
+ * executeTransfer's own guard below skips this requirement entirely in
+ * that case. authorizeApproval is scoped to destination_campus_id, not
+ * before.campus_id — the whole point is that this is the DESTINATION's own
+ * role-levels/delegations being checked, not the source's.
+ */
+export async function acceptDestinationTransfer(user: AuthUser, transferId: string, input: z.infer<typeof acceptDestinationTransferSchema>) {
+  const before = await repo.findById(transferId);
+  if (!before) throw new NotFoundError('Transfer request');
+  if (!before.destination_campus_id) throw new ConflictError('This transfer is same-campus — there is no separate destination acceptance step');
+  if (before.status !== 'approved') throw new ConflictError(`Cannot accept a transfer in status '${before.status}'`);
+  if (before.destination_accepted_at) throw new ConflictError('This transfer has already been accepted by the destination campus');
+
+  const resolution = await authorizeApproval(user, { requiredRole: 'warden', campusId: before.destination_campus_id });
+
+  const after = await repo.update(transferId, {
+    destination_accepted_by: user.sub,
+    destination_accepted_at: db.fn.now(),
+    ...(input.credentialRemappingNotes !== undefined && { credential_remapping_notes: input.credentialRemappingNotes }),
+  });
+
+  await recordApprovalResolution({
+    orgId: user.org_id,
+    campusId: before.destination_campus_id,
+    entityType: 'transfer_request',
+    entityId: transferId,
+    requiredRole: 'warden',
+    resolution,
+    actualApproverUserId: user.sub,
+  });
+  await recordAudit({
+    orgId: user.org_id,
+    campusId: before.destination_campus_id,
+    actorUserId: user.sub,
+    action: 'transfer.destination_accepted',
+    entityType: 'transfer_request',
+    entityId: transferId,
+    before,
+    after,
+  });
+  await notify({
+    orgId: user.org_id,
+    campusId: before.campus_id,
+    userId: before.student_id,
+    type: 'transfer.destination_accepted',
+    title: 'The destination campus accepted your transfer — it can now be executed',
+    link: '/allocations',
+  });
+
+  return after;
+}
+
+/**
  * BR §7's "reserve new bed exclusively -> new-room inventory handover ->
  * atomic occupancy switch -> old-room inspection -> release/block old bed"
  * sequence, collapsed into one action the same way createAllocation/
@@ -198,6 +283,13 @@ export async function executeTransfer(user: AuthUser, transferId: string, input:
   if (!before) throw new NotFoundError('Transfer request');
   if (before.status !== 'approved') throw new ConflictError(`Cannot execute a transfer in status '${before.status}'`);
   if (!before.new_bed_id) throw new ConflictError('Transfer has no target bed recorded');
+  // D17.07 item 101 — the whole point of the destination-acceptance step:
+  // a cross-campus move cannot physically execute until the destination
+  // campus itself has said yes, independent of the source Warden's own
+  // decision.
+  if (before.destination_campus_id && !before.destination_accepted_at) {
+    throw new ConflictError('This cross-campus transfer has not been accepted by the destination campus yet');
+  }
 
   const newBed = await db('beds').where({ id: before.new_bed_id }).first();
   if (!newBed) throw new NotFoundError('Bed');
@@ -205,10 +297,16 @@ export async function executeTransfer(user: AuthUser, transferId: string, input:
     throw new ConflictError(`Target bed is now '${newBed.status}', not available — the transfer cannot proceed as approved`);
   }
 
+  // The new allocation/check-in belong to wherever the bed actually is —
+  // the destination campus for a cross-campus move, the same campus as
+  // before otherwise. Using before.campus_id unconditionally here was the
+  // pre-Batch-25 same-campus assumption item 101 exists to close.
+  const targetCampusId = before.destination_campus_id ?? before.campus_id;
+
   const [newAllocation] = await db('allocations')
     .insert({
       org_id: user.org_id,
-      campus_id: before.campus_id,
+      campus_id: targetCampusId,
       application_id: null,
       student_id: before.student_id,
       bed_id: before.new_bed_id,
@@ -224,7 +322,7 @@ export async function executeTransfer(user: AuthUser, transferId: string, input:
 
   await db('checkins').insert({
     org_id: user.org_id,
-    campus_id: before.campus_id,
+    campus_id: targetCampusId,
     allocation_id: newAllocation.id,
     undertaking_accepted: input.undertakingAccepted,
     condition_notes: input.conditionNotes ?? null,

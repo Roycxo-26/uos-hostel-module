@@ -37,12 +37,34 @@ import {
   type Allocation,
   type AllocationOffer,
   type AllocationStatus,
+  type ChangeCategory,
   type CheckInInventoryItem,
   type ConditionPhoto,
+  type DestinationCampus,
   type HostelApplication,
   type TransferRequest,
   type WaitlistEntry,
 } from '../types';
+
+// D17.07 item 102 (TODO.md Batch 25).
+const CHANGE_CATEGORY_OPTIONS: ChangeCategory[] = [
+  'bed_change',
+  'room_change',
+  'floor_wing_block_transfer',
+  'hostel_to_hostel_transfer',
+  'campus_to_campus_transfer',
+  'temporary_maintenance_relocation',
+  'accessibility_accommodation_move',
+  'safety_welfare_emergency_move',
+  'conflict_resolution_move',
+  'administrative_reassignment',
+  'resident_requested_voluntary_move',
+  'extension_of_stay',
+  'early_termination',
+];
+function humanizeChangeCategory(c: ChangeCategory): string {
+  return c.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
 
 interface AvailableBed {
   id: string;
@@ -131,6 +153,7 @@ export function Allocations() {
   const [decideTransferTarget, setDecideTransferTarget] = useState<TransferRequest | null>(null);
   const [executeTransferTarget, setExecuteTransferTarget] = useState<TransferRequest | null>(null);
   const [cancelTransferTarget, setCancelTransferTarget] = useState<TransferRequest | null>(null);
+  const [acceptDestinationTarget, setAcceptDestinationTarget] = useState<TransferRequest | null>(null);
 
   async function load() {
     setLoading(true);
@@ -356,6 +379,15 @@ export function Allocations() {
                               : `Temporary — auto-restores ${t.retrospectiveReviewDeadline ? new Date(t.retrospectiveReviewDeadline).toLocaleString() : ''}`}
                         </span>
                       )}
+                      {/* D17.07 item 101 — a cross-campus transfer needs a
+                          second, destination-side acceptance before it can
+                          execute; visible here since Decide/Execute alone
+                          don't show which side of that gate it's on. */}
+                      {t.destinationCampusId && (
+                        <span className="inline-flex items-center rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700">
+                          {t.destinationAcceptedAt ? 'Destination accepted' : 'Awaiting destination acceptance'}
+                        </span>
+                      )}
                     </p>
                     <p className="mt-0.5 truncate text-slate-600">{t.reason}</p>
                   </div>
@@ -374,7 +406,16 @@ export function Allocations() {
                         Decide
                       </Button>
                     )}
-                    {isStaff && t.status === 'approved' && (
+                    {/* D17.07 item 101 — until the destination campus
+                        accepts, Execute is refused server-side anyway;
+                        showing Accept instead (rather than a doomed
+                        Execute button) matches what will actually work. */}
+                    {isStaff && t.status === 'approved' && t.destinationCampusId && !t.destinationAcceptedAt && (
+                      <Button size="sm" variant="secondary" onClick={() => setAcceptDestinationTarget(t)}>
+                        Accept as destination
+                      </Button>
+                    )}
+                    {isStaff && t.status === 'approved' && (!t.destinationCampusId || t.destinationAcceptedAt) && (
                       <Button size="sm" onClick={() => setExecuteTransferTarget(t)}>
                         Execute
                       </Button>
@@ -404,6 +445,9 @@ export function Allocations() {
       )}
       {executeTransferTarget && (
         <ExecuteTransferSheet transfer={executeTransferTarget} onClose={() => setExecuteTransferTarget(null)} onExecuted={load} />
+      )}
+      {acceptDestinationTarget && (
+        <AcceptDestinationTransferSheet transfer={acceptDestinationTarget} onClose={() => setAcceptDestinationTarget(null)} onAccepted={load} />
       )}
       {cancelTransferTarget && (
         <CancelTransferSheet transfer={cancelTransferTarget} onClose={() => setCancelTransferTarget(null)} onCancelled={load} />
@@ -924,6 +968,63 @@ function NoShowSheet({ allocation, onClose, onResolved }: { allocation: Allocati
   );
 }
 
+/** D17.07 item 101 — the destination campus's own acceptance step. A
+ * genuinely different action from Decide: Decide is the source campus
+ * releasing the resident, this is the destination campus agreeing to take
+ * them (and their access/credentials) on. */
+function AcceptDestinationTransferSheet({
+  transfer,
+  onClose,
+  onAccepted,
+}: {
+  transfer: TransferRequest;
+  onClose: () => void;
+  onAccepted: () => void;
+}) {
+  const [credentialRemappingNotes, setCredentialRemappingNotes] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await transferApi.acceptDestinationTransfer(transfer.id, credentialRemappingNotes || undefined);
+      onAccepted();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="Accept as destination campus"
+      footer={
+        <Button fullWidth onClick={() => void handleSubmit()} disabled={submitting}>
+          {submitting ? 'Accepting…' : 'Accept transfer'}
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+        <Alert>
+          Accepting confirms your campus will receive this resident — key/access credentials, guardian notification and
+          inventory/condition evidence are your campus's responsibility from here.
+        </Alert>
+        <p className="text-sm text-slate-600">{transfer.reason}</p>
+        <FieldWrapper label="Credential/access remapping notes" htmlFor="adt-notes" hint="Optional">
+          <Textarea id="adt-notes" value={credentialRemappingNotes} onChange={(e) => setCredentialRemappingNotes(e.target.value)} />
+        </FieldWrapper>
+      </div>
+    </Sheet>
+  );
+}
+
 /** UOS HOSTEL BR.md §7 — self-service by default; staff get the extra
  * 'emergency' option, which a resident cannot declare for themselves
  * (enforced server-side in transfers/service.ts, not just hidden here). */
@@ -946,9 +1047,19 @@ function RequestTransferSheet({
   const [studentId, setStudentId] = useState('');
   const [retrospectiveReviewDeadline, setRetrospectiveReviewDeadline] = useState('');
   const [isTemporary, setIsTemporary] = useState(false);
+  const [changeCategory, setChangeCategory] = useState<ChangeCategory | ''>('');
+  const [destinationCampusId, setDestinationCampusId] = useState('');
+  const [destinationCampuses, setDestinationCampuses] = useState<DestinationCampus[]>([]);
   const [candidates, setCandidates] = useState<ResidentCandidate[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // D17.07 item 101 — only staff ever see (or need) the cross-campus
+  // option; a resident requesting their own transfer stays same-campus.
+  useEffect(() => {
+    if (!open || !isStaff) return;
+    void transferApi.listDestinationCampuses().then(setDestinationCampuses);
+  }, [open, isStaff]);
 
   // Real gap, found live: this field asked staff to paste a raw resident
   // UUID with no way to discover one, same class of issue as the Room
@@ -974,6 +1085,8 @@ function RequestTransferSheet({
           ? { retrospectiveReviewDeadline: new Date(retrospectiveReviewDeadline).toISOString() }
           : {}),
         ...(transferType === 'emergency' ? { isTemporary } : {}),
+        ...(changeCategory ? { changeCategory } : {}),
+        ...(destinationCampusId ? { destinationCampusId } : {}),
       });
       onRequested();
       onClose();
@@ -982,6 +1095,8 @@ function RequestTransferSheet({
       setTransferType('normal');
       setRetrospectiveReviewDeadline('');
       setIsTemporary(false);
+      setChangeCategory('');
+      setDestinationCampusId('');
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -1024,6 +1139,30 @@ function RequestTransferSheet({
             <Select id="tr-type" value={transferType} onChange={(e) => setTransferType(e.target.value as 'normal' | 'emergency')}>
               <option value="normal">Normal</option>
               <option value="emergency">Emergency relocation — requires {headWardenLabel} decision</option>
+            </Select>
+          </FieldWrapper>
+        )}
+        {isStaff && (
+          <FieldWrapper label="Change category" htmlFor="tr-category" hint="Optional — the BRD's own finer classification, on top of Type above">
+            <Select id="tr-category" value={changeCategory} onChange={(e) => setChangeCategory(e.target.value as ChangeCategory | '')}>
+              <option value="">Not specified</option>
+              {CHANGE_CATEGORY_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {humanizeChangeCategory(c)}
+                </option>
+              ))}
+            </Select>
+          </FieldWrapper>
+        )}
+        {isStaff && destinationCampuses.length > 0 && (
+          <FieldWrapper label="Destination campus" htmlFor="tr-dest-campus" hint="Optional — only for a cross-campus transfer; needs the destination Warden's own acceptance before it can execute">
+            <Select id="tr-dest-campus" value={destinationCampusId} onChange={(e) => setDestinationCampusId(e.target.value)}>
+              <option value="">Same campus</option>
+              {destinationCampuses.map((c) => (
+                <option key={c.campusId} value={c.campusId}>
+                  {c.name} ({c.code})
+                </option>
+              ))}
             </Select>
           </FieldWrapper>
         )}

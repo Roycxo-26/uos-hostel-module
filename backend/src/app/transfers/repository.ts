@@ -33,3 +33,15 @@ export function update(id: string, data: Record<string, unknown>) {
     .returning('*')
     .then((rows) => rows[0]);
 }
+
+/** D17.07 item 101 — `shadow_campuses` has no RLS (it's the very table
+ * campus scoping is built from — there's no meaningful "campus-scope this
+ * to one campus" for the list of campuses itself), so this genuinely
+ * returns every campus in the org, not just the caller's own. That's the
+ * point: a Warden proposing a cross-campus transfer needs to see every
+ * possible destination, not only the one they're currently scoped to. */
+export function listCampuses(orgId: string, excludeCampusId?: string) {
+  const query = db('shadow_campuses').where({ org_id: orgId, is_active: true }).orderBy('name');
+  if (excludeCampusId) query.andWhereNot({ campus_id: excludeCampusId });
+  return query;
+}

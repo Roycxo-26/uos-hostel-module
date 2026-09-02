@@ -387,6 +387,23 @@ export interface CheckIn {
 export type TransferStatus = 'requested' | 'approved' | 'rejected' | 'cancelled' | 'completed';
 export type TransferType = 'normal' | 'emergency';
 
+// D17.07 depth (TODO.md Batch 25) — purely descriptive, layered on top of
+// transferType, never replaces it.
+export type ChangeCategory =
+  | 'bed_change'
+  | 'room_change'
+  | 'floor_wing_block_transfer'
+  | 'hostel_to_hostel_transfer'
+  | 'campus_to_campus_transfer'
+  | 'temporary_maintenance_relocation'
+  | 'accessibility_accommodation_move'
+  | 'safety_welfare_emergency_move'
+  | 'conflict_resolution_move'
+  | 'administrative_reassignment'
+  | 'resident_requested_voluntary_move'
+  | 'extension_of_stay'
+  | 'early_termination';
+
 export interface TransferRequest {
   id: string;
   orgId: string;
@@ -412,6 +429,46 @@ export interface TransferRequest {
   restoredAt: string | null;
   restoreTransferId: string | null;
   restorationBlockedAt: string | null;
+  // D17.07 items 101/102.
+  destinationCampusId: string | null;
+  destinationAcceptedBy: string | null;
+  destinationAcceptedAt: string | null;
+  credentialRemappingNotes: string | null;
+  changeCategory: ChangeCategory | null;
+  createdAt: string;
+}
+
+export interface DestinationCampus {
+  campusId: string;
+  name: string;
+  code: string;
+}
+
+// --- Resident privilege changes (D17.07 item 100, TODO.md Batch 25) ---
+
+export type PrivilegeChangeType = 'access_zone' | 'visitor_hosting' | 'outpass_rule_profile' | 'mess_entitlement' | 'temporary_access' | 'hostel_privilege_status';
+export type PrivilegeChangeAction = 'grant' | 'restrict' | 'suspend' | 'restore';
+export type PrivilegeChangeStatus = 'requested' | 'approved' | 'rejected' | 'cancelled' | 'reversed';
+
+export interface ResidentPrivilegeChange {
+  id: string;
+  studentId: string;
+  privilegeType: PrivilegeChangeType;
+  action: PrivilegeChangeAction;
+  previousConfiguration: Record<string, unknown> | null;
+  proposedConfiguration: Record<string, unknown>;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  initiatorUserId: string;
+  reason: string;
+  status: PrivilegeChangeStatus;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  residentAcknowledgedAt: string | null;
+  linkedReferenceType: string | null;
+  linkedReferenceId: string | null;
+  supersededBy: string | null;
   createdAt: string;
 }
 

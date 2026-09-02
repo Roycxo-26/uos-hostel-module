@@ -59,6 +59,16 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/allocations', label: 'Allocations', icon: BedIcon, group: 'Hostel Core', primaryMobile: true },
   { path: '/movement', label: 'Leave & Headcount', icon: DoorIcon, group: 'Hostel Core', primaryMobile: true },
   { path: '/checkout', label: 'Checkout', icon: KeyIcon, group: 'Hostel Core' },
+  // HOSTEL-GAP-ANALYSIS.md D17.07 depth (TODO.md Batch 25) — staff-only,
+  // resident privilege changes sit alongside Allocations/Checkout as
+  // resident-lifecycle actions, not a Safety & Services concern.
+  {
+    path: '/privilege-changes',
+    label: 'Privilege Changes',
+    icon: KeyIcon,
+    visible: (me) => isPlatformAdmin(me) || hasHostelRole(me, 'warden'),
+    group: 'Hostel Core',
+  },
 
   { path: '/cases?type=complaint', label: 'Help Desk / Complaints', icon: AlertIcon, group: 'Safety & Services' },
   { path: '/cases?type=incident', label: 'Safety & Incidents', icon: AlertIcon, group: 'Safety & Services' },

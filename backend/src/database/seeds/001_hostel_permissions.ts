@@ -116,6 +116,13 @@ export async function seed(knex: Knex): Promise<void> {
     // a separate permission string.
     'closure:manage',
     'guest_stay:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.07 depth (TODO.md Batch 25) — resident
+    // privilege changes (access zones, visitor-hosting, outpass rule
+    // profile, mess entitlement, temporary access, hostel privilege
+    // status). Staff-initiated throughout — see privilegeChanges/
+    // service.ts's own comment on why there's no resident self-service
+    // submit path, unlike applications/transfers/movements.
+    'privilege_change:manage',
   ];
 
   await knex('hostel.role_permissions').insert([

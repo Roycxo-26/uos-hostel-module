@@ -1,12 +1,26 @@
 import { Request, Response, NextFunction } from 'express';
 import { created, success } from '../../utils/response';
 import * as service from './service';
-import { cancelTransferSchema, decideTransferSchema, executeTransferSchema, requestTransferSchema } from './validators';
+import {
+  acceptDestinationTransferSchema,
+  cancelTransferSchema,
+  decideTransferSchema,
+  executeTransferSchema,
+  requestTransferSchema,
+} from './validators';
 
 export async function requestTransfer(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = requestTransferSchema.parse(req.body);
     created(res, { transfer: await service.requestTransfer(req.user, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listDestinationCampuses(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    success(res, { campuses: await service.listDestinationCampuses(req.user) });
   } catch (err) {
     next(err);
   }
@@ -33,6 +47,15 @@ export async function decideTransfer(req: Request, res: Response, next: NextFunc
   try {
     const input = decideTransferSchema.parse(req.body);
     success(res, { transfer: await service.decideTransfer(req.user, req.params.transferId, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function acceptDestinationTransfer(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = acceptDestinationTransferSchema.parse(req.body);
+    success(res, { transfer: await service.acceptDestinationTransfer(req.user, req.params.transferId, input) });
   } catch (err) {
     next(err);
   }

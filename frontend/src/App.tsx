@@ -19,6 +19,7 @@ import { CommonAreas } from './pages/CommonAreas';
 import { DutyRoster } from './pages/DutyRoster';
 import { Grievances } from './pages/Grievances';
 import { OccupancyVerification } from './pages/OccupancyVerification';
+import { PrivilegeChanges } from './pages/PrivilegeChanges';
 import { Reports } from './pages/Reports';
 import { RoomAccess } from './pages/RoomAccess';
 import { Safety } from './pages/Safety';
@@ -98,6 +99,14 @@ function AuthenticatedApp() {
             element={
               <StaffOnly>
                 <Closures />
+              </StaffOnly>
+            }
+          />
+          <Route
+            path="/privilege-changes"
+            element={
+              <StaffOnly>
+                <PrivilegeChanges />
               </StaffOnly>
             }
           />

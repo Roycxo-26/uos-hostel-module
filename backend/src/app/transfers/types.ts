@@ -1,6 +1,25 @@
 export type TransferStatus = 'requested' | 'approved' | 'rejected' | 'cancelled' | 'completed';
 export type TransferType = 'normal' | 'emergency';
 
+// D17.07 depth (TODO.md Batch 25) — the BRD's own change-type list, minus
+// the ones that went to the new resident_privilege_changes table instead
+// (see the migration's own comment). Purely descriptive/reporting — it
+// never changes which approval authority (transfer_type) applies.
+export type ChangeCategory =
+  | 'bed_change'
+  | 'room_change'
+  | 'floor_wing_block_transfer'
+  | 'hostel_to_hostel_transfer'
+  | 'campus_to_campus_transfer'
+  | 'temporary_maintenance_relocation'
+  | 'accessibility_accommodation_move'
+  | 'safety_welfare_emergency_move'
+  | 'conflict_resolution_move'
+  | 'administrative_reassignment'
+  | 'resident_requested_voluntary_move'
+  | 'extension_of_stay'
+  | 'early_termination';
+
 export interface TransferRequest {
   id: string;
   org_id: string;
@@ -28,5 +47,11 @@ export interface TransferRequest {
   restored_at: Date | null;
   restore_transfer_id: string | null;
   restoration_blocked_at: Date | null;
+  // D17.07 items 101/102.
+  destination_campus_id: string | null;
+  destination_accepted_by: string | null;
+  destination_accepted_at: Date | null;
+  credential_remapping_notes: string | null;
+  change_category: ChangeCategory | null;
   created_at: Date;
 }

@@ -1,0 +1,1 @@
+export { privilegeChangesRouter } from './route';

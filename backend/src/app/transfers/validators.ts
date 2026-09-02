@@ -5,6 +5,22 @@ import { z } from 'zod';
 // (Warden/Head Warden) may pass studentId to request on a resident's
 // behalf, required for transferType='emergency' (a student cannot declare
 // their own emergency relocation — enforced in the service, not just here).
+const CHANGE_CATEGORIES = [
+  'bed_change',
+  'room_change',
+  'floor_wing_block_transfer',
+  'hostel_to_hostel_transfer',
+  'campus_to_campus_transfer',
+  'temporary_maintenance_relocation',
+  'accessibility_accommodation_move',
+  'safety_welfare_emergency_move',
+  'conflict_resolution_move',
+  'administrative_reassignment',
+  'resident_requested_voluntary_move',
+  'extension_of_stay',
+  'early_termination',
+] as const;
+
 export const requestTransferSchema = z
   .object({
     studentId: z.string().uuid().optional(),
@@ -17,6 +33,11 @@ export const requestTransferSchema = z
     // doubles as the return-due date when this is true. UAT.md Batch 10
     // gap-closure: previously every emergency transfer was a one-way move.
     isTemporary: z.boolean().default(false),
+    // D17.07 item 102 — purely descriptive; optional so nothing that
+    // called this endpoint before this batch breaks.
+    changeCategory: z.enum(CHANGE_CATEGORIES).optional(),
+    // D17.07 item 101 — set only for a genuinely cross-campus move.
+    destinationCampusId: z.string().uuid().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.transferType === 'emergency' && !val.retrospectiveReviewDeadline) {
@@ -64,4 +85,10 @@ export const executeTransferSchema = z.object({
 
 export const cancelTransferSchema = z.object({
   reason: z.string().trim().min(1).max(500),
+});
+
+// D17.07 item 101 — the destination campus's own Warden accepting a
+// cross-campus transfer, distinct from the source Warden's decideTransfer.
+export const acceptDestinationTransferSchema = z.object({
+  credentialRemappingNotes: z.string().trim().max(1000).optional(),
 });

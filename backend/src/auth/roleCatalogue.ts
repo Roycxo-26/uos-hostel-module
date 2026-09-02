@@ -72,6 +72,7 @@ const WARDEN_PERMISSIONS: readonly string[] = [
   'operational_notice:manage',
   'closure:manage',
   'guest_stay:manage',
+  'privilege_change:manage',
 ];
 
 export const ROLE_PERMISSIONS: ReadonlyArray<{ role: string; permission: string }> = [

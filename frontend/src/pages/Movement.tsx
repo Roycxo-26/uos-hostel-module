@@ -519,7 +519,7 @@ function DecideMovementSheet({
   const [reason, setReason] = useState('');
   const [bypass, setBypass] = useState(false);
   const [otpCode, setOtpCode] = useState('');
-  const [callOutcome, setCallOutcome] = useState<'approve' | 'decline'>('approve');
+  const [callOutcome, setCallOutcome] = useState<'approve' | 'decline' | 'no_response'>('approve');
   const [callRemark, setCallRemark] = useState('');
   const [extensionReturn, setExtensionReturn] = useState('');
   const [extensionReason, setExtensionReason] = useState('');
@@ -624,6 +624,7 @@ function DecideMovementSheet({
                 <Select value={callOutcome} onChange={(e) => setCallOutcome(e.target.value as typeof callOutcome)}>
                   <option value="approve">Call confirmed — Approve</option>
                   <option value="decline">Call confirmed — Decline</option>
+                  <option value="no_response">No response — guardian did not pick up</option>
                 </Select>
                 <Textarea placeholder="Mandatory remark (who you spoke to, what they said)" value={callRemark} onChange={(e) => setCallRemark(e.target.value)} />
                 <Button

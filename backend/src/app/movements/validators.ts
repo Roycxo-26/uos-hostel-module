@@ -78,7 +78,11 @@ export const verifyOtpSchema = z.object({
 
 export const recordCallConfirmationSchema = z.object({
   guardianId: z.string().uuid(),
-  outcome: z.enum(['approve', 'decline']),
+  // Management's own clarification on the communication architecture —
+  // Batch 23 only had approve/decline; 'no_response' covers the guardian
+  // simply not picking up, a real third outcome distinct from an active
+  // decline.
+  outcome: z.enum(['approve', 'decline', 'no_response']),
   // Mandatory per policy: "Mandatory remark/reason."
   remark: z.string().trim().min(1).max(1000),
 });

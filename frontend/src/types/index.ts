@@ -541,7 +541,7 @@ export interface MovementGuardianConfirmation {
   otpExpiresAt: string | null;
   otpAttemptCount: number;
   otpMaxAttempts: number;
-  callOutcome: 'approve' | 'decline' | null;
+  callOutcome: 'approve' | 'decline' | 'no_response' | null;
   callRemark: string | null;
   callGuardianId: string | null;
   status: GuardianConfirmationStatus;

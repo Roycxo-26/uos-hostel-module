@@ -78,7 +78,7 @@ export interface MovementGuardianConfirmation {
   otp_expires_at: Date | null;
   otp_attempt_count: number;
   otp_max_attempts: number;
-  call_outcome: 'approve' | 'decline' | null;
+  call_outcome: 'approve' | 'decline' | 'no_response' | null;
   call_remark: string | null;
   call_guardian_id: string | null;
   status: GuardianConfirmationStatus;

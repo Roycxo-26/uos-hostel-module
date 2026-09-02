@@ -175,6 +175,10 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   checked_in: { label: 'Checked In', tone: 'success' },
   checked_out: { label: 'Checked Out', tone: 'neutral' },
   pending: { label: 'Pending', tone: 'warning' },
+  // Guardian confirmation attempt (D17.10) — an exhausted OTP or a
+  // no-response call both land here; distinct from 'declined' (the
+  // guardian actively said no).
+  failed: { label: 'Failed', tone: 'danger' },
 };
 
 function humanize(status: string): string {

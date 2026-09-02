@@ -363,7 +363,11 @@ export async function recordGuardianCallConfirmation(user: AuthUser, movementId:
     call_outcome: input.outcome,
     call_remark: input.remark,
     call_guardian_id: guardian.id,
-    status: input.outcome === 'approve' ? 'verified' : 'declined',
+    // 'no_response' is neither a verified confirmation nor an active
+    // decline — it's an inconclusive attempt, same bucket as an exhausted
+    // OTP ('failed'): staff can try again (a fresh call, or resend the
+    // OTP), same as any other failed attempt.
+    status: input.outcome === 'approve' ? 'verified' : input.outcome === 'decline' ? 'declined' : 'failed',
     verified_by: user.sub,
     verified_at: db.fn.now(),
   });

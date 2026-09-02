@@ -93,7 +93,7 @@ export async function resendGuardianOtp(movementId: string) {
 
 export async function recordGuardianCallConfirmation(
   movementId: string,
-  input: { guardianId: string; outcome: 'approve' | 'decline'; remark: string }
+  input: { guardianId: string; outcome: 'approve' | 'decline' | 'no_response'; remark: string }
 ) {
   const { confirmation } = await api.post<{ confirmation: MovementGuardianConfirmation }>(`/movements/${movementId}/guardian-call-confirmation`, input);
   return confirmation;

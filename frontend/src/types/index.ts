@@ -680,7 +680,18 @@ export interface CaseAccessGrant {
 
 // --- Checkout (UOS HOSTEL BR.md §10) ---
 
-export type CheckoutStatus = 'requested' | 'inspected' | 'completed' | 'cancelled';
+export type CheckoutStatus = 'requested' | 'inspected' | 'completed' | 'cancelled' | 'reopened';
+
+// D17.12 depth (TODO.md Batch 26).
+export type CheckoutType = 'end_of_term' | 'early_voluntary' | 'disciplinary_removal' | 'death_incapacity' | 'abandonment';
+
+export interface PrerequisiteChecklistItem {
+  completed: boolean;
+  completedBy?: string;
+  completedAt?: string;
+  notes?: string;
+}
+export type PrerequisiteChecklist = Record<string, PrerequisiteChecklistItem>;
 
 export interface Checkout {
   id: string;
@@ -701,6 +712,46 @@ export interface Checkout {
   approvedBy: string | null;
   approvedAt: string | null;
   bedOutcome: 'available' | 'blocked' | null;
+  checkoutType: CheckoutType;
+  prerequisiteChecklist: PrerequisiteChecklist | null;
+  itemReturnVerifiedAt: string | null;
+  damageAssessmentFinalizedAt: string | null;
+  roomReadyForReuseAt: string | null;
+  reopenReason: string | null;
+  legalWaitingPeriodEndsAt: string | null;
+  createdAt: string;
+  inventoryItems?: CheckoutInventoryItem[];
+  contactAttempts?: CheckoutContactAttempt[];
+  checkinItems?: CheckInInventoryItem[];
+}
+
+export type ContactMethod = 'call' | 'email' | 'sms' | 'in_person';
+export type ContactOutcome = 'no_response' | 'invalid_contact' | 'reached';
+
+export interface CheckoutContactAttempt {
+  id: string;
+  checkoutId: string;
+  attemptedBy: string;
+  attemptedAt: string;
+  method: ContactMethod;
+  outcome: ContactOutcome;
+  notes: string | null;
+}
+
+export type CheckoutItemCondition = 'good' | 'fair' | 'damaged' | 'missing';
+export type CheckoutItemClassification = 'normal_wear' | 'damage' | 'not_applicable';
+
+export interface CheckoutInventoryItem {
+  id: string;
+  checkoutId: string;
+  checkinItemId: string | null;
+  itemName: string;
+  itemCategory: string;
+  conditionAtCheckout: CheckoutItemCondition;
+  classification: CheckoutItemClassification | null;
+  photoUrl: string | null;
+  officerNotes: string | null;
+  chargeAmount: string | null;
   createdAt: string;
 }
 

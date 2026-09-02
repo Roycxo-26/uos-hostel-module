@@ -24,7 +24,30 @@ import {
 import { BedIcon } from '../design-system/icons';
 import type { Column } from '../design-system';
 import { errorMessage } from '../lib/errorMessage';
-import { hasHostelRole, isPlatformAdmin, type Checkout } from '../types';
+import { hasHostelRole, isPlatformAdmin, type Checkout, type CheckoutType } from '../types';
+
+// D17.12 depth (TODO.md Batch 26).
+const CHECKOUT_TYPE_LABELS: Record<CheckoutType, string> = {
+  end_of_term: 'End of term',
+  early_voluntary: 'Early voluntary',
+  disciplinary_removal: 'Disciplinary removal',
+  death_incapacity: 'Death / incapacity',
+  abandonment: 'Abandonment (no-contact)',
+};
+
+const PREREQUISITE_CHECKLIST_LABELS: Record<string, string> = {
+  academic_clearance: 'Academic clearance',
+  library_clearance: 'Library clearance',
+  hostel_dues_cleared: 'Hostel dues cleared',
+  written_request_on_file: 'Written request on file',
+  notice_period_served: 'Notice period served',
+  case_reference_linked: 'Case reference linked',
+  security_notified: 'Security notified',
+  next_of_kin_contacted: 'Next of kin contacted',
+  institutional_authority_notified: 'Institutional authority notified',
+  contact_attempts_logged: 'Contact attempts logged',
+  waiting_period_elapsed: 'Waiting period elapsed',
+};
 
 /** Real gap, found live — same raw-ID display already fixed on
  * Allocations.tsx/Cases.tsx, just hadn't reached this page yet. Same
@@ -122,6 +145,7 @@ function RequestCheckoutSheet({
 }) {
   const [studentId, setStudentId] = useState('');
   const [reason, setReason] = useState('');
+  const [checkoutType, setCheckoutType] = useState<CheckoutType>('end_of_term');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [residentOptions, setResidentOptions] = useState<ResidentCandidate[]>([]);
@@ -147,11 +171,12 @@ function RequestCheckoutSheet({
     setSubmitting(true);
     setError(null);
     try {
-      await checkoutApi.requestCheckout({ reason, ...(isStaff && studentId ? { studentId } : {}) });
+      await checkoutApi.requestCheckout({ reason, checkoutType, ...(isStaff && studentId ? { studentId } : {}) });
       onRequested();
       onClose();
       setStudentId('');
       setReason('');
+      setCheckoutType('end_of_term');
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -187,6 +212,17 @@ function RequestCheckoutSheet({
         <FieldWrapper label="Reason" htmlFor="co-reason" required hint="e.g. term ending, transfer out, withdrawal">
           <Textarea id="co-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
         </FieldWrapper>
+        {isStaff && (
+          <FieldWrapper label="Type" htmlFor="co-type" hint={checkoutType === 'abandonment' ? 'Starts the legal waiting period immediately — see the checkout detail once created' : undefined}>
+            <Select id="co-type" value={checkoutType} onChange={(e) => setCheckoutType(e.target.value as CheckoutType)}>
+              {Object.entries(CHECKOUT_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </FieldWrapper>
+        )}
       </div>
     </Sheet>
   );
@@ -210,7 +246,23 @@ function CheckoutDetailSheet({
   // for the other two terminology fields.
   const headWardenLabel = useLabel('headWardenLabel', 'Head Warden');
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<string | null>(null);
+
+  // D17.12 depth (TODO.md Batch 26) — the row passed in from the list is
+  // the pre-detail shape; the checklist/inventory/contact-attempt data only
+  // comes back from the single-GET endpoint, so this always re-fetches on
+  // open, same pattern Movement.tsx/Cases.tsx already use for their own
+  // detail sheets.
+  const [detail, setDetail] = useState<Checkout>(checkout);
+
+  async function refresh() {
+    setDetail(await checkoutApi.getCheckout(checkout.id));
+  }
+
+  useEffect(() => {
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkout.id]);
 
   const [inspectionNotes, setInspectionNotes] = useState('');
   const [damageFound, setDamageFound] = useState(false);
@@ -220,21 +272,40 @@ function CheckoutDetailSheet({
   const [overrideReason, setOverrideReason] = useState('');
   const [bedOutcome, setBedOutcome] = useState<'available' | 'blocked'>('available');
   const [cancelReason, setCancelReason] = useState('');
+  const [reopenReason, setReopenReason] = useState('');
 
-  const isResident = checkout.studentId === currentUserId;
-  const allClear = checkout.deskCleared && checkout.financeCleared;
+  // D17.12 item 106 — contact attempt form
+  const [contactMethod, setContactMethod] = useState<'call' | 'email' | 'sms' | 'in_person'>('call');
+  const [contactOutcome, setContactOutcome] = useState<'no_response' | 'invalid_contact' | 'reached'>('no_response');
+  const [contactNotes, setContactNotes] = useState('');
 
-  async function run(action: () => Promise<unknown>) {
-    setSubmitting(true);
+  // D17.12 item 107 — inventory item form
+  const [itemCheckinItemId, setItemCheckinItemId] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [itemCondition, setItemCondition] = useState<'good' | 'fair' | 'damaged' | 'missing'>('good');
+  const [itemClassification, setItemClassification] = useState<'normal_wear' | 'damage' | 'not_applicable' | ''>('');
+  const [itemNotes, setItemNotes] = useState('');
+  const [itemCharge, setItemCharge] = useState('');
+
+  const isResident = detail.studentId === currentUserId;
+  const checklistKeys = Object.keys(detail.prerequisiteChecklist ?? {});
+  const fiveMilestonesClear = Boolean(
+    detail.deskCleared && detail.financeCleared && detail.itemReturnVerifiedAt && detail.damageAssessmentFinalizedAt && detail.roomReadyForReuseAt
+  );
+  const editableNow = ['inspected', 'reopened'].includes(detail.status);
+
+  async function run(action: string, fn: () => Promise<unknown>, closeAfter = false) {
+    setSubmitting(action);
     setError(null);
     try {
-      await action();
+      await fn();
+      await refresh();
       onChanged();
-      onClose();
+      if (closeAfter) onClose();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
-      setSubmitting(false);
+      setSubmitting(null);
     }
   }
 
@@ -244,24 +315,29 @@ function CheckoutDetailSheet({
         {error && <Alert>{error}</Alert>}
 
         <div className="space-y-1 text-sm">
-          <StatusPill status={checkout.status} />
-          <p className="text-slate-700">{checkout.reason}</p>
-          {checkout.status !== 'requested' && (
+          <p className="flex items-center gap-2">
+            <StatusPill status={detail.status} />
+            <span className="text-slate-500">{CHECKOUT_TYPE_LABELS[detail.checkoutType]}</span>
+          </p>
+          <p className="text-slate-700">{detail.reason}</p>
+          {detail.status !== 'requested' && (
             <>
               {/* Real gap, found live via SELF-TEST-GUIDE.md C10's own
                   "confirm the full history is still visible" check — the
                   general inspection notes (separate from the damage
                   description) were captured on submit and never displayed
                   anywhere, on a clean checkout as much as a damaged one. */}
-              {checkout.inspectionNotes && <p className="text-slate-500">Inspection notes: {checkout.inspectionNotes}</p>}
+              {detail.inspectionNotes && <p className="text-slate-500">Inspection notes: {detail.inspectionNotes}</p>}
               <p className="text-slate-500">
-                Desk: {checkout.deskCleared ? 'Cleared' : 'Pending'} · Finance: {checkout.financeCleared ? 'Cleared' : 'Pending'}
+                Desk: {detail.deskCleared ? 'Cleared' : 'Pending'} · Finance: {detail.financeCleared ? 'Cleared' : 'Pending'} · Items:{' '}
+                {detail.itemReturnVerifiedAt ? 'Verified' : 'Pending'} · Damage assessment: {detail.damageAssessmentFinalizedAt ? 'Finalized' : 'Pending'} · Room:{' '}
+                {detail.roomReadyForReuseAt ? 'Ready' : 'Pending'}
               </p>
-              {checkout.damageFound && (
+              {detail.damageFound && (
                 <p className="text-slate-500">
-                  Damage: {checkout.damageDescription ?? '—'}
-                  {checkout.damageChargeAmount ? ` (₹${checkout.damageChargeAmount})` : ''}
-                  {checkout.damageDisputed && ' — disputed'}
+                  Damage: {detail.damageDescription ?? '—'}
+                  {detail.damageChargeAmount ? ` (₹${detail.damageChargeAmount})` : ''}
+                  {detail.damageDisputed && ' — disputed'}
                 </p>
               )}
               {/* Real gap, found live via SELF-TEST-GUIDE.md C10 — the
@@ -270,15 +346,79 @@ function CheckoutDetailSheet({
                   only the bare word "disputed" above. Whoever decides the
                   override (Warden attempt, then Head Warden) had no way to
                   see what the resident actually said before deciding. */}
-              {checkout.damageDisputed && checkout.disputeReason && (
-                <p className="text-slate-500">Dispute reason: {checkout.disputeReason}</p>
+              {detail.damageDisputed && detail.disputeReason && (
+                <p className="text-slate-500">Dispute reason: {detail.disputeReason}</p>
               )}
+              {detail.reopenReason && <p className="text-slate-500">Reopen reason: {detail.reopenReason}</p>}
             </>
+          )}
+          {detail.checkoutType === 'abandonment' && detail.legalWaitingPeriodEndsAt && (
+            <p className="text-slate-500">Legal waiting period ends {new Date(detail.legalWaitingPeriodEndsAt).toLocaleString()}</p>
           )}
         </div>
 
+        {isStaff && checklistKeys.length > 0 && editableNow && (
+          <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <p className="text-xs font-medium text-slate-700">Prerequisite checklist ({CHECKOUT_TYPE_LABELS[detail.checkoutType]})</p>
+            {checklistKeys.map((key) => (
+              <label key={key} className="flex min-h-touch cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(detail.prerequisiteChecklist?.[key]?.completed)}
+                  disabled={Boolean(submitting)}
+                  onChange={(e) => void run(`chk-${key}`, () => checkoutApi.updatePrerequisiteChecklist(detail.id, key, e.target.checked))}
+                  className="h-4 w-4 rounded border-slate-300 text-accent"
+                />
+                {PREREQUISITE_CHECKLIST_LABELS[key] ?? key}
+              </label>
+            ))}
+          </div>
+        )}
+
+        {isStaff && detail.checkoutType === 'abandonment' && (
+          <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-xs font-medium text-amber-800">Contact attempts ({(detail.contactAttempts ?? []).length})</p>
+            <ul className="space-y-1 text-xs text-amber-700">
+              {(detail.contactAttempts ?? []).map((a) => (
+                <li key={a.id}>
+                  {new Date(a.attemptedAt).toLocaleString()} — {a.method} — {a.outcome}
+                  {a.notes && `: ${a.notes}`}
+                </li>
+              ))}
+            </ul>
+            {editableNow && (
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Select value={contactMethod} onChange={(e) => setContactMethod(e.target.value as typeof contactMethod)}>
+                    <option value="call">Call</option>
+                    <option value="email">Email</option>
+                    <option value="sms">SMS</option>
+                    <option value="in_person">In person</option>
+                  </Select>
+                  <Select value={contactOutcome} onChange={(e) => setContactOutcome(e.target.value as typeof contactOutcome)}>
+                    <option value="no_response">No response</option>
+                    <option value="invalid_contact">Invalid contact</option>
+                    <option value="reached">Reached</option>
+                  </Select>
+                </div>
+                <Input placeholder="Notes (optional)" value={contactNotes} onChange={(e) => setContactNotes(e.target.value)} />
+                <Button
+                  size="sm"
+                  fullWidth
+                  disabled={Boolean(submitting)}
+                  onClick={() =>
+                    void run('contact', () => checkoutApi.recordContactAttempt(detail.id, { method: contactMethod, outcome: contactOutcome, notes: contactNotes || undefined }))
+                  }
+                >
+                  Log attempt
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Staff: room inspection */}
-        {isStaff && checkout.status === 'requested' && (
+        {isStaff && ['requested', 'reopened'].includes(detail.status) && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <p className="text-sm font-medium text-slate-800">Room inspection</p>
             <FieldWrapper label="Notes" htmlFor="cd-insp-notes">
@@ -300,10 +440,10 @@ function CheckoutDetailSheet({
             )}
             <Button
               fullWidth
-              disabled={submitting}
+              disabled={Boolean(submitting)}
               onClick={() =>
-                void run(() =>
-                  checkoutApi.inspectCheckout(checkout.id, {
+                void run('inspect', () =>
+                  checkoutApi.inspectCheckout(detail.id, {
                     inspectionNotes: inspectionNotes || undefined,
                     damageFound,
                     damageChargeAmount: damageChargeAmount ? Number(damageChargeAmount) : undefined,
@@ -318,48 +458,159 @@ function CheckoutDetailSheet({
         )}
 
         {/* Resident: dispute a damage charge */}
-        {isResident && checkout.status === 'inspected' && checkout.damageFound && !checkout.damageDisputed && (
+        {isResident && detail.status === 'inspected' && detail.damageFound && !detail.damageDisputed && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <p className="text-sm font-medium text-slate-800">Dispute this charge</p>
             <FieldWrapper label="Reason" htmlFor="cd-dispute" required>
               <Textarea id="cd-dispute" value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} />
             </FieldWrapper>
-            <Button variant="secondary" fullWidth disabled={submitting || !disputeReason.trim()} onClick={() => void run(() => checkoutApi.disputeDamage(checkout.id, disputeReason))}>
+            <Button variant="secondary" fullWidth disabled={submitting !== null || !disputeReason.trim()} onClick={() => void run('dispute', () => checkoutApi.disputeDamage(detail.id, disputeReason))}>
               Submit dispute
             </Button>
           </div>
         )}
 
-        {/* Staff: record clearances + approve */}
-        {isStaff && checkout.status === 'inspected' && (
+        {/* Staff: itemized inventory (D17.12 item 107) */}
+        {isStaff && (editableNow || (detail.inventoryItems ?? []).length > 0) && (
+          <div className="space-y-2 border-t border-slate-200 pt-4">
+            <p className="text-sm font-medium text-slate-800">Itemized inventory</p>
+            {(detail.inventoryItems ?? []).length > 0 && (
+              <ul className="space-y-1 text-xs text-slate-600">
+                {(detail.inventoryItems ?? []).map((it) => (
+                  <li key={it.id}>
+                    {it.itemName} — {it.conditionAtCheckout}
+                    {it.classification && it.classification !== 'not_applicable' && ` (${it.classification.replace('_', ' ')})`}
+                    {it.chargeAmount ? ` — ₹${it.chargeAmount}` : ''}
+                    {it.officerNotes && `: ${it.officerNotes}`}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {editableNow && (
+              <div className="space-y-1.5 rounded-lg border border-slate-200 p-3">
+                {(detail.checkinItems ?? []).length > 0 && (
+                  <Select
+                    value={itemCheckinItemId}
+                    onChange={(e) => {
+                      setItemCheckinItemId(e.target.value);
+                      const matched = (detail.checkinItems ?? []).find((c) => c.id === e.target.value);
+                      if (matched) setItemName(matched.itemName);
+                    }}
+                  >
+                    <option value="">Link to a check-in item (optional)</option>
+                    {(detail.checkinItems ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.itemName}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+                <Input placeholder="Item name" value={itemName} onChange={(e) => setItemName(e.target.value)} />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Select value={itemCondition} onChange={(e) => setItemCondition(e.target.value as typeof itemCondition)}>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="missing">Missing</option>
+                  </Select>
+                  <Select value={itemClassification} onChange={(e) => setItemClassification(e.target.value as typeof itemClassification)}>
+                    <option value="">Classification (optional)</option>
+                    <option value="normal_wear">Normal wear</option>
+                    <option value="damage">Damage</option>
+                    <option value="not_applicable">Not applicable</option>
+                  </Select>
+                </div>
+                {/* Manual-entry-only charge — no rate-card computation yet.
+                    Blocked on a policy decision + Batch 27 (Finance); see
+                    TODO.md Batch 26 write-up. */}
+                <Input placeholder="Charge amount ₹ (optional, manual only)" type="number" min={0} value={itemCharge} onChange={(e) => setItemCharge(e.target.value)} />
+                <Input placeholder="Officer notes (optional)" value={itemNotes} onChange={(e) => setItemNotes(e.target.value)} />
+                <Button
+                  size="sm"
+                  fullWidth
+                  disabled={Boolean(submitting) || !itemName.trim()}
+                  onClick={() =>
+                    void run('add-item', async () => {
+                      await checkoutApi.addCheckoutInventoryItem(detail.id, {
+                        checkinItemId: itemCheckinItemId || undefined,
+                        itemName,
+                        conditionAtCheckout: itemCondition,
+                        classification: itemClassification || undefined,
+                        chargeAmount: itemCharge ? Number(itemCharge) : undefined,
+                        officerNotes: itemNotes || undefined,
+                      });
+                      setItemCheckinItemId('');
+                      setItemName('');
+                      setItemCondition('good');
+                      setItemClassification('');
+                      setItemCharge('');
+                      setItemNotes('');
+                    })
+                  }
+                >
+                  Add item
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Staff: three new milestones (D17.12 item 104), alongside clearances */}
+        {isStaff && ['inspected', 'reopened'].includes(detail.status) && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
-            <p className="text-sm font-medium text-slate-800">Clearances</p>
-            <div className="flex gap-2">
+            <p className="text-sm font-medium text-slate-800">Clearances &amp; milestones</p>
+            <div className="flex flex-wrap gap-2">
               <Button
-                variant={checkout.deskCleared ? 'secondary' : 'primary'}
+                variant={detail.deskCleared ? 'secondary' : 'primary'}
                 size="sm"
-                disabled={submitting}
-                onClick={() => void run(() => checkoutApi.recordClearance(checkout.id, { deskCleared: !checkout.deskCleared }))}
+                disabled={Boolean(submitting)}
+                onClick={() => void run('desk', () => checkoutApi.recordClearance(detail.id, { deskCleared: !detail.deskCleared }))}
               >
-                Desk: {checkout.deskCleared ? 'Cleared ✓' : 'Mark cleared'}
+                Desk: {detail.deskCleared ? 'Cleared ✓' : 'Mark cleared'}
               </Button>
               <Button
-                variant={checkout.financeCleared ? 'secondary' : 'primary'}
+                variant={detail.financeCleared ? 'secondary' : 'primary'}
                 size="sm"
-                disabled={submitting}
-                onClick={() => void run(() => checkoutApi.recordClearance(checkout.id, { financeCleared: !checkout.financeCleared }))}
+                disabled={Boolean(submitting)}
+                onClick={() => void run('finance', () => checkoutApi.recordClearance(detail.id, { financeCleared: !detail.financeCleared }))}
               >
-                Finance: {checkout.financeCleared ? 'Cleared ✓' : 'Mark cleared'}
+                Finance: {detail.financeCleared ? 'Cleared ✓' : 'Mark cleared'}
+              </Button>
+              <Button
+                variant={detail.itemReturnVerifiedAt ? 'secondary' : 'primary'}
+                size="sm"
+                disabled={Boolean(submitting) || Boolean(detail.itemReturnVerifiedAt)}
+                onClick={() => void run('item-return', () => checkoutApi.recordItemReturn(detail.id))}
+              >
+                Items: {detail.itemReturnVerifiedAt ? 'Verified ✓' : 'Verify return'}
+              </Button>
+              <Button
+                variant={detail.damageAssessmentFinalizedAt ? 'secondary' : 'primary'}
+                size="sm"
+                disabled={Boolean(submitting) || Boolean(detail.damageAssessmentFinalizedAt)}
+                onClick={() => void run('damage-final', () => checkoutApi.finalizeDamageAssessment(detail.id))}
+              >
+                Damage assessment: {detail.damageAssessmentFinalizedAt ? 'Finalized ✓' : 'Finalize'}
+              </Button>
+              <Button
+                variant={detail.roomReadyForReuseAt ? 'secondary' : 'primary'}
+                size="sm"
+                disabled={Boolean(submitting) || Boolean(detail.roomReadyForReuseAt)}
+                onClick={() => void run('room-ready', () => checkoutApi.markRoomReadyForReuse(detail.id))}
+              >
+                Room: {detail.roomReadyForReuseAt ? 'Ready ✓' : 'Mark ready'}
               </Button>
             </div>
 
             <p className="text-sm font-medium text-slate-800">Approve</p>
-            {!allClear && (
+            {!fiveMilestonesClear && (
               <Alert tone="warning">
-                Clearances incomplete — approving now requires an override reason and {headWardenLabel} authority (or an active delegation).
+                Milestones incomplete — approving now requires an override reason and {headWardenLabel} authority (or an active delegation).
+                {detail.checkoutType === 'abandonment' &&
+                  ' Abandonment also requires at least one logged contact attempt and the legal waiting period to have passed — this cannot be overridden.'}
               </Alert>
             )}
-            {!allClear && (
+            {!fiveMilestonesClear && (
               <FieldWrapper label="Override reason" htmlFor="cd-override" required>
                 <Textarea id="cd-override" value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} />
               </FieldWrapper>
@@ -372,13 +623,16 @@ function CheckoutDetailSheet({
             </FieldWrapper>
             <Button
               fullWidth
-              disabled={submitting || (!allClear && !overrideReason.trim())}
+              disabled={Boolean(submitting) || (!fiveMilestonesClear && !overrideReason.trim())}
               onClick={() =>
-                void run(() =>
-                  checkoutApi.approveCheckout(checkout.id, {
-                    bedOutcome,
-                    ...(overrideReason ? { overrideReason } : {}),
-                  })
+                void run(
+                  'approve',
+                  () =>
+                    checkoutApi.approveCheckout(detail.id, {
+                      bedOutcome,
+                      ...(overrideReason ? { overrideReason } : {}),
+                    }),
+                  true
                 )
               }
             >
@@ -388,22 +642,48 @@ function CheckoutDetailSheet({
         )}
 
         {/* Resident or staff: cancel */}
-        {(isResident || isStaff) && ['requested', 'inspected'].includes(checkout.status) && (
+        {(isResident || isStaff) && ['requested', 'inspected'].includes(detail.status) && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <p className="text-sm font-medium text-slate-800">Cancel checkout</p>
             <FieldWrapper label="Reason" htmlFor="cd-cancel" required>
               <Textarea id="cd-cancel" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
             </FieldWrapper>
-            <Button variant="danger" fullWidth disabled={submitting || !cancelReason.trim()} onClick={() => void run(() => checkoutApi.cancelCheckout(checkout.id, cancelReason))}>
+            <Button
+              variant="danger"
+              fullWidth
+              disabled={submitting !== null || !cancelReason.trim()}
+              onClick={() => void run('cancel', () => checkoutApi.cancelCheckout(detail.id, cancelReason), true)}
+            >
               Cancel
             </Button>
           </div>
         )}
 
-        {checkout.status === 'completed' && (
+        {/* Staff: reopen (D17.12 item 105) */}
+        {isStaff && detail.status === 'completed' && (
+          <div className="space-y-3 border-t border-slate-200 pt-4">
+            <p className="text-sm font-medium text-slate-800">Reopen checkout</p>
+            <p className="text-xs text-slate-500">
+              Only possible if the bed hasn't already changed state since this checkout completed (e.g. a new resident hasn't moved in).
+            </p>
+            <FieldWrapper label="Reason" htmlFor="cd-reopen" required>
+              <Textarea id="cd-reopen" value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} />
+            </FieldWrapper>
+            <Button
+              variant="secondary"
+              fullWidth
+              disabled={submitting !== null || !reopenReason.trim()}
+              onClick={() => void run('reopen', () => checkoutApi.reopenCheckout(detail.id, reopenReason))}
+            >
+              Reopen
+            </Button>
+          </div>
+        )}
+
+        {detail.status === 'completed' && (
           <div className="border-t border-slate-200 pt-4">
             <Alert tone="warning">
-              Checkout complete — bed marked {checkout.bedOutcome}. {checkout.overrideReason && `Approved via override: ${checkout.overrideReason}`}
+              Checkout complete — bed marked {detail.bedOutcome}. {detail.overrideReason && `Approved via override: ${detail.overrideReason}`}
             </Alert>
           </div>
         )}

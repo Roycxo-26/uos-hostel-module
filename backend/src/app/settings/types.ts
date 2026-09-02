@@ -59,6 +59,10 @@ export interface PolicyDefaults {
   movementEscalation30mMinutes: number;
   movementEscalation3hHours: number;
   movementEscalation12hHours: number;
+  // D17.12 depth (TODO.md Batch 26) — how long staff must wait, with at
+  // least one logged contact attempt, before an abandonment checkout can
+  // be approved without the resident's own participation.
+  abandonmentLegalWaitingPeriodDays: number;
 }
 
 export interface TenantSettings {
@@ -113,6 +117,7 @@ export const DEFAULT_POLICY: PolicyDefaults = {
   movementEscalation30mMinutes: 30,
   movementEscalation3hHours: 3,
   movementEscalation12hHours: 12,
+  abandonmentLegalWaitingPeriodDays: 7,
 };
 
 type StoredRow = {

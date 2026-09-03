@@ -11,6 +11,7 @@ import * as financeRepo from '../finance/repository';
 import { computeBalances } from '../finance/types';
 import * as maintenanceRepo from '../maintenance/repository';
 import { computeRoomReadiness } from '../maintenance/types';
+import * as messKitchenRepo from '../messKitchen/repository';
 import * as roomAccessRepo from '../roomAccess/repository';
 import * as safetyRepo from '../safety/repository';
 import { getSettings } from '../settings/service';
@@ -512,6 +513,15 @@ export async function approveCheckout(user: AuthUser, id: string, input: z.infer
 
   await db('allocations').where({ id: before.allocation_id }).update({ status: 'ended', updated_at: db.fn.now() });
   await db('beds').where({ id: before.bed_id }).update({ status: input.bedOutcome, updated_at: db.fn.now() });
+
+  // D17.16 (TODO.md Batch 30, item 123) §24.4 — real occupancy just ended.
+  await messKitchenRepo.recordOutboundEvent({
+    org_id: user.org_id,
+    campus_id: before.campus_id,
+    student_id: before.student_id,
+    event_type: 'd17.occupancy-ended.v1',
+    payload: { checkoutId: id, allocationId: before.allocation_id, bedId: before.bed_id },
+  });
 
   // D17.12 item 106 — belongings-inventory-and-storage route, reusing Batch
   // 18's property custody rather than a parallel storage concept. Only for

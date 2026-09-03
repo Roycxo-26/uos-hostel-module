@@ -1,0 +1,1 @@
+export { messKitchenRouter } from './route';

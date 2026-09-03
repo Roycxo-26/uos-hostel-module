@@ -154,6 +154,11 @@ export async function seed(knex: Knex): Promise<void> {
     // gamification for a hostel is stronger — see gamification:configure
     // below, Head Warden only, same reasoning as structure:configure.
     'gamification:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.16 (TODO.md Batch 30, item 123) —
+    // observability into the outbound event outbox. Every producing
+    // event write itself is a repo-to-repo call from another module's
+    // service.ts, not a route this permission gates.
+    'mess_kitchen:view_events',
   ];
 
   await knex('hostel.role_permissions').insert([

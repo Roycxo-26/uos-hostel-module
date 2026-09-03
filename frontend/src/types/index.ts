@@ -1297,6 +1297,33 @@ export interface GamificationScore {
   createdAt: string;
 }
 
+// --- Mess/Kitchen interlink (D17.16, TODO.md Batch 30) ----------------------
+// D18 owns the menu/attendance/diet/feedback outright (see "HOSTEL - v.1.md"
+// §24.1) — D17 only publishes the facts it owns and reports honestly that
+// no D18 is connected in this standalone build.
+
+export type MenuStatus = 'MENU_NOT_PUBLISHED' | 'STALE' | 'D18_DISCONNECTED' | 'UPDATED';
+
+export interface MessKitchenConnectionStatus {
+  menuStatus: MenuStatus;
+  d18Connected: boolean;
+  lastKnownMenuAt: string | null;
+  note: string;
+}
+
+export type OutboundEventType =
+  | 'd17.occupancy-started.v1' | 'd17.occupancy-ended.v1' | 'd17.outpass-departed.v1' | 'd17.outpass-returned.v1'
+  | 'd17.leave-approved.v1' | 'd17.leave-cancelled.v1' | 'd17.visitor-meal-approved.v1' | 'd17.temporary-absence-updated.v1';
+
+export interface MessKitchenOutboxEvent {
+  id: string;
+  studentId: string | null;
+  eventType: OutboundEventType;
+  payload: Record<string, unknown>;
+  occurredAt: string;
+  deliveryStatus: 'queued' | 'delivered' | 'failed';
+}
+
 export type LegalHoldStatus = 'none' | 'hold' | 'released';
 
 export interface SecurityEvidenceReference {

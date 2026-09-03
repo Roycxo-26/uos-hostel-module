@@ -4,6 +4,7 @@ import { db } from '../../db';
 import { ConflictError, NotFoundError } from '../../middlewares/errorHandler';
 import { recordAudit } from '../../utils/audit';
 import { notifyCampusStaff } from '../../utils/notify';
+import * as messKitchenRepo from '../messKitchen/repository';
 import type { createCheckInSchema } from './validators';
 
 // D17.04 item 60 — these two acknowledgement types mean the resident did
@@ -113,6 +114,18 @@ export async function createCheckIn(user: AuthUser, input: z.infer<typeof create
 
   await db('allocations').where({ id: allocation.id }).update({ status: 'checked_in_active', updated_at: db.fn.now() });
   await db('beds').where({ id: allocation.bed_id }).update({ status: 'occupied', updated_at: db.fn.now() });
+
+  // D17.16 (TODO.md Batch 30, item 123) §24.4 — real occupancy just
+  // started, the first of the outbound events D17 supplies to a D18 that
+  // doesn't exist yet in this build (always queued, see the outbox's own
+  // comment).
+  await messKitchenRepo.recordOutboundEvent({
+    org_id: user.org_id,
+    campus_id: allocation.campus_id,
+    student_id: allocation.student_id,
+    event_type: 'd17.occupancy-started.v1',
+    payload: { allocationId: allocation.id, bedId: allocation.bed_id },
+  });
 
   // Application's purpose is fulfilled once residency is actually active —
   // flow.md §9 status lifecycle ends Draft..Allocated at "Closed".

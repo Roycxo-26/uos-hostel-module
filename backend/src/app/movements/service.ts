@@ -9,6 +9,7 @@ import { recordAudit } from '../../utils/audit';
 import { authorizeApproval, recordApprovalResolution } from '../../utils/approvalResolution';
 import { resolveCampusId } from '../../utils/campusScope';
 import { notify, notifyCampusStaff } from '../../utils/notify';
+import * as messKitchenRepo from '../messKitchen/repository';
 import { getSettings } from '../settings/service';
 import * as repo from './repository';
 import type { MovementType } from './types';
@@ -488,6 +489,19 @@ export async function decideMovement(user: AuthUser, id: string, input: z.infer<
     });
   }
 
+  // D17.16 (TODO.md Batch 30, item 123) §24.4 — an approved absence
+  // window is one of the sources D18 would de-duplicate against its
+  // expected-meal-count per §24.3.
+  if (input.decision === 'approved') {
+    await messKitchenRepo.recordOutboundEvent({
+      org_id: user.org_id,
+      campus_id: before.campus_id,
+      student_id: before.student_id,
+      event_type: 'd17.leave-approved.v1',
+      payload: { movementRequestId: id, requestedOut: before.requested_out, requestedReturn: before.requested_return },
+    });
+  }
+
   return after;
 }
 
@@ -514,6 +528,20 @@ export async function cancelMovement(user: AuthUser, id: string, input: z.infer<
     after,
     reason: input.reason,
   });
+
+  // D17.16 (TODO.md Batch 30, item 123) §24.4 — only meaningful if D17
+  // already published this as an approved absence window (see
+  // decideMovement's own 'd17.leave-approved.v1'); cancelling a merely
+  // 'requested' one was never published in the first place.
+  if (before.status === 'approved') {
+    await messKitchenRepo.recordOutboundEvent({
+      org_id: user.org_id,
+      campus_id: before.campus_id,
+      student_id: before.student_id,
+      event_type: 'd17.leave-cancelled.v1',
+      payload: { movementRequestId: id },
+    });
+  }
 
   // Real gap, found live via SELF-TEST-GUIDE.md C11 — cancelling silently
   // notified nobody, whichever side did it. If the resident cancels, staff
@@ -568,6 +596,16 @@ export async function recordExit(user: AuthUser, id: string) {
     after,
   });
 
+  // D17.16 (TODO.md Batch 30, item 123) §24.4 — a resident just left the
+  // hostel, one input D17 supplies toward D18's own expected-meal-count.
+  await messKitchenRepo.recordOutboundEvent({
+    org_id: user.org_id,
+    campus_id: before.campus_id,
+    student_id: before.student_id,
+    event_type: 'd17.outpass-departed.v1',
+    payload: { movementRequestId: id },
+  });
+
   return after;
 }
 
@@ -592,6 +630,15 @@ export async function recordReturn(user: AuthUser, id: string) {
     entityId: id,
     before,
     after,
+  });
+
+  // D17.16 (TODO.md Batch 30, item 123) §24.4.
+  await messKitchenRepo.recordOutboundEvent({
+    org_id: user.org_id,
+    campus_id: before.campus_id,
+    student_id: before.student_id,
+    event_type: 'd17.outpass-returned.v1',
+    payload: { movementRequestId: id },
   });
 
   return after;

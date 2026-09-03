@@ -76,6 +76,10 @@ const NAV_ITEMS: NavItem[] = [
   // staff-only, unlike Privilege Changes above — every resident sees and
   // disputes their own account here.
   { path: '/finance', label: 'Finance', icon: ChartIcon, group: 'Hostel Core' },
+  // HOSTEL-GAP-ANALYSIS.md D17.13 (TODO.md Batch 30) — an explicitly
+  // optional feature entitlement (see Settings); not staff-only, a
+  // resident tracks their own placement.
+  { path: '/off-campus', label: 'Off-Campus Housing', icon: BuildingIcon, group: 'Hostel Core' },
 
   { path: '/cases?type=complaint', label: 'Help Desk / Complaints', icon: AlertIcon, group: 'Safety & Services' },
   { path: '/cases?type=incident', label: 'Safety & Incidents', icon: AlertIcon, group: 'Safety & Services' },

@@ -30,6 +30,11 @@ export interface FeatureFlags {
   enableMealAttendance: boolean;
   enableSpecialDiet: boolean;
   enableParentAccess: boolean;
+  // D17.13 (TODO.md Batch 30) — §21.1: "This is an optional feature
+  // entitlement." Off by default; see offCampus/service.ts's own comment
+  // on §21.4's module-off behaviour (existing records stay readable, new
+  // ones are blocked, nothing is deleted).
+  enableOffCampusHousing: boolean;
 }
 
 export interface PolicyDefaults {
@@ -69,6 +74,8 @@ export interface PolicyDefaults {
   // composite room-readiness gate's own cleanliness threshold (1-5 scale).
   maintenanceVerificationSlaHours: number;
   roomReadinessMinCleanlinessScore: number;
+  // D17.13 (TODO.md Batch 30) — §21.2 "periodic occupancy confirmation."
+  offCampusOccupancyConfirmationIntervalDays: number;
 }
 
 export interface TenantSettings {
@@ -106,6 +113,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   enableMealAttendance: true,
   enableSpecialDiet: true,
   enableParentAccess: false,
+  enableOffCampusHousing: false,
 };
 
 export const DEFAULT_POLICY: PolicyDefaults = {
@@ -126,6 +134,7 @@ export const DEFAULT_POLICY: PolicyDefaults = {
   abandonmentLegalWaitingPeriodDays: 7,
   maintenanceVerificationSlaHours: 24,
   roomReadinessMinCleanlinessScore: 3,
+  offCampusOccupancyConfirmationIntervalDays: 30,
 };
 
 type StoredRow = {

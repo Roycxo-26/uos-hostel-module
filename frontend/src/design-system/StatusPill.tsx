@@ -201,6 +201,12 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   // resolved complaint reopening), tone danger. A visitor request reopened
   // for post-close review isn't that — closer to Closure's own reopened.
   'visitor:reopened': { label: 'Reopened', tone: 'warning' },
+
+  // Off-campus placement (D17.13, TODO.md Batch 30) — 'requested'/
+  // 'under_review'/'approved'/'rejected'/'active'/'exited'/'cancelled'/
+  // 'pending'/'expired'/'suspended' all reuse entries above (same meanings).
+  periodic_confirmation_due: { label: 'Confirmation Due', tone: 'warning' },
+  exit_requested: { label: 'Exit Requested', tone: 'warning' },
 };
 
 function humanize(status: string): string {

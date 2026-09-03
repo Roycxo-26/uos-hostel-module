@@ -76,6 +76,7 @@ const WARDEN_PERMISSIONS: readonly string[] = [
   'finance_event:manage',
   'visitor:manage',
   'maintenance:manage',
+  'off_campus:manage',
 ];
 
 export const ROLE_PERMISSIONS: ReadonlyArray<{ role: string; permission: string }> = [

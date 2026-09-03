@@ -14,6 +14,7 @@ import { HostelStructure } from './pages/HostelStructure';
 import { Kitchen } from './pages/Kitchen';
 import { Login } from './pages/Login';
 import { Maintenance } from './pages/Maintenance';
+import { OffCampusHousing } from './pages/OffCampusHousing';
 import { Mess } from './pages/Mess';
 import { Movement } from './pages/Movement';
 import { CommonAreas } from './pages/CommonAreas';
@@ -116,6 +117,11 @@ function AuthenticatedApp() {
               and disputes their own financial events; raising/confirming/
               reversing is staff-gated server-side (see Finance.tsx). */}
           <Route path="/finance" element={<Finance />} />
+          {/* D17.13 (TODO.md Batch 30) — not staff-only, a resident
+              requests and tracks their own placement; approving providers/
+              placements is staff-gated server-side (see
+              OffCampusHousing.tsx). */}
+          <Route path="/off-campus" element={<OffCampusHousing />} />
           {/* D17.06 (TODO.md Batch 28) — not staff-only, a host requests/
               tracks their own visitor; deciding/entry/exit/handover is
               staff-gated server-side (see Visitors.tsx). */}

@@ -19,6 +19,7 @@ import {
 } from './jobs/flagOverdueMovements';
 import { flagVisitorOverstaysAllTenants, expireVisitorPassesAllTenants } from './jobs/flagVisitorExceptions';
 import { flagMaintenanceSlaBreachesAllTenants } from './jobs/flagMaintenanceSlaBreaches';
+import { flagOffCampusConfirmationDueAllTenants } from './jobs/flagOffCampusConfirmationDue';
 import { restoreTemporaryRelocationsAllTenants } from './jobs/restoreTemporaryRelocations';
 
 const MIGRATIONS_CONFIG = {
@@ -329,6 +330,13 @@ async function boot(): Promise<void> {
   }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
   void flagMaintenanceSlaBreachesAllTenants();
 
+  // D17.13 (TODO.md Batch 30) — §21.2 periodic occupancy confirmation.
+  // Same stopgap-but-flagged reasoning as every sweep above.
+  const offCampusConfirmationSweepTimer = setInterval(() => {
+    void flagOffCampusConfirmationDueAllTenants();
+  }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
+  void flagOffCampusConfirmationDueAllTenants();
+
   const shutdown = (signal: string): void => {
     console.log(`[${process.env.MODULE_NAME}] ${signal} received, shutting down`);
     clearInterval(noShowSweepTimer);
@@ -344,6 +352,7 @@ async function boot(): Promise<void> {
     clearInterval(visitorOverstaySweepTimer);
     clearInterval(visitorPassExpirySweepTimer);
     clearInterval(maintenanceSlaSweepTimer);
+    clearInterval(offCampusConfirmationSweepTimer);
     server.close(() => {
       void Promise.all([sync ? sync.stop() : Promise.resolve(), registry.destroy()]).then(() => process.exit(0));
     });

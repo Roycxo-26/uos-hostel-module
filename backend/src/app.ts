@@ -31,6 +31,7 @@ import { privilegeChangesRouter } from './app/privilegeChanges';
 import { financeRouter } from './app/finance';
 import { visitorsRouter } from './app/visitors';
 import { maintenanceRouter } from './app/maintenance';
+import { offCampusRouter } from './app/offCampus';
 import { auditRouter } from './app/audit';
 import { adminRouter } from './app/admin';
 import { meRouter } from './app/me';
@@ -88,6 +89,7 @@ export function createApp() {
   app.use('/finance', financeRouter());
   app.use('/visitors', visitorsRouter());
   app.use('/maintenance', maintenanceRouter());
+  app.use('/off-campus', offCampusRouter());
   app.use('/audit', auditRouter());
 
   // Required by @uos/auth's spec ("Required admin API endpoints" — the

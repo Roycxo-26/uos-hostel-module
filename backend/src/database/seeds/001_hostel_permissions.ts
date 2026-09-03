@@ -143,6 +143,12 @@ export async function seed(knex: Knex): Promise<void> {
     // responsibility-assignment system (any Warden/Head Warden acts as
     // the fallback, which this permission does cover).
     'maintenance:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.13 (TODO.md Batch 30, item 120) —
+    // registering/approving providers, deciding placements, confirming
+    // exit, linking an issue handoff reference. Requesting a placement,
+    // confirming occupancy, requesting exit and cancelling stay
+    // self-service — see offCampus/route.ts's own comment.
+    'off_campus:manage',
   ];
 
   await knex('hostel.role_permissions').insert([

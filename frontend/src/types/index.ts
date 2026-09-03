@@ -84,6 +84,8 @@ export interface FeatureFlags {
   enableMealAttendance: boolean;
   enableSpecialDiet: boolean;
   enableParentAccess: boolean;
+  // D17.13 (TODO.md Batch 30).
+  enableOffCampusHousing: boolean;
 }
 
 // Real gap, found live while adding this batch's own two fields below:
@@ -104,6 +106,8 @@ export interface PolicyDefaults {
   // D17.08 (TODO.md Batch 29).
   maintenanceVerificationSlaHours: number;
   roomReadinessMinCleanlinessScore: number;
+  // D17.13 (TODO.md Batch 30).
+  offCampusOccupancyConfirmationIntervalDays: number;
 }
 
 export interface TenantSettings {
@@ -1165,6 +1169,57 @@ export interface RoomReadiness {
   ready: boolean;
   gates: RoomReadinessGates;
   notModelled: readonly string[];
+}
+
+// --- Off-campus / short-stay housing (D17.13, TODO.md Batch 30) ------------
+
+export type ProviderComplianceStatus = 'pending' | 'approved' | 'expired' | 'rejected' | 'suspended';
+
+export interface OffCampusProvider {
+  id: string;
+  providerName: string;
+  address: string;
+  emergencyContact: string | null;
+  complianceStatus: ProviderComplianceStatus;
+  complianceNotes: string | null;
+  safetyInspectionReference: string | null;
+  defaultContractReference: string | null;
+  integrationStatus: 'manual' | 'integrated';
+  createdBy: string;
+  createdAt: string;
+}
+
+export type OffCampusPlacementType =
+  | 'private_accommodation' | 'partner_residence' | 'visiting_exchange' | 'emergency_temporary'
+  | 'guest_short_stay' | 'summer_vacation' | 'overflow';
+export type OffCampusPlacementStatus =
+  | 'requested' | 'under_review' | 'approved' | 'rejected' | 'active'
+  | 'periodic_confirmation_due' | 'exit_requested' | 'exited' | 'cancelled';
+
+export interface OffCampusPlacement {
+  id: string;
+  providerId: string;
+  studentId: string;
+  placementType: OffCampusPlacementType;
+  status: OffCampusPlacementStatus;
+  startDate: string;
+  endDate: string;
+  actualExitDate: string | null;
+  roomBedReference: string | null;
+  contractReference: string | null;
+  safetyInspectionReference: string | null;
+  paymentOwnerReference: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  lastOccupancyConfirmedAt: string | null;
+  nextOccupancyConfirmationDue: string | null;
+  issueHandoffReference: string | null;
+  exitConfirmedBy: string | null;
+  exitConfirmedAt: string | null;
+  exitNotes: string | null;
+  cancelledReason: string | null;
+  createdAt: string;
 }
 
 export type LegalHoldStatus = 'none' | 'hold' | 'released';

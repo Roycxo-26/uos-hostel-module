@@ -153,6 +153,7 @@ const FEATURE_FLAG_FIELDS: Array<{ key: keyof FeatureFlags; label: string }> = [
   { key: 'enableMealAttendance', label: 'Enable meal attendance' },
   { key: 'enableSpecialDiet', label: 'Enable special diet requests' },
   { key: 'enableParentAccess', label: 'Enable parent/guardian access' },
+  { key: 'enableOffCampusHousing', label: 'Enable off-campus / short-stay housing' },
 ];
 
 function FeatureFlagsSection({ initial, onSaved }: { initial: FeatureFlags; onSaved: () => void }) {
@@ -273,6 +274,16 @@ function PolicySection({ initial, onSaved }: { initial: PolicyDefaults; onSaved:
             max={5}
             value={value.roomReadinessMinCleanlinessScore}
             onChange={(e) => setValue({ ...value, roomReadinessMinCleanlinessScore: Number(e.target.value) })}
+          />
+        </FieldWrapper>
+        {/* D17.13 (TODO.md Batch 30) — added straight to this screen. */}
+        <FieldWrapper label="Off-campus occupancy confirmation interval (days)" htmlFor="p-offcampus" hint="How often a resident must reconfirm they're still living at an off-campus placement">
+          <Input
+            id="p-offcampus"
+            type="number"
+            min={1}
+            value={value.offCampusOccupancyConfirmationIntervalDays}
+            onChange={(e) => setValue({ ...value, offCampusOccupancyConfirmationIntervalDays: Number(e.target.value) })}
           />
         </FieldWrapper>
       </div>

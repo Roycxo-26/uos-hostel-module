@@ -112,13 +112,16 @@ export function listActiveHeadWardens(campusId: string) {
 // (Designated/Deputy Safeguarding Lead, Welfare Officer, Counsellor),
 // reusing this same table exactly like the duty-roster privilege types
 // already do. Deliberately NOT scope-matched like hasActive()/
-// findActiveHolder() above — a safeguarding team membership is a standing,
-// campus-wide authority, not tied to one specific room/floor/hostel scope
-// row the way Room Head/Floor In-charge assignments are; whichever scope
-// the assignment happened to be recorded against doesn't narrow who it
-// covers.
+// findActiveHolder() above — a standing role membership is a campus-wide
+// authority, not tied to one specific room/floor/hostel scope row the way
+// Room Head/Floor In-charge assignments are; whichever scope the
+// assignment happened to be recorded against doesn't narrow who it covers.
+// D17.05 (TODO.md Batch 27) reuses these same two functions for the
+// standing 'finance_officer' role — genuinely generic by privilegeTypes
+// param already, renamed from *Safeguarding* now that a second, unrelated
+// role family calls them too.
 
-export function findActiveSafeguardingRole(userId: string, privilegeTypes: string[]) {
+export function findActiveStandingRole(userId: string, privilegeTypes: string[]) {
   return db('responsibility_assignments')
     .where({ assignee_user_id: userId, status: 'active' })
     .whereIn('privilege_type', privilegeTypes)
@@ -127,7 +130,7 @@ export function findActiveSafeguardingRole(userId: string, privilegeTypes: strin
     .first('id');
 }
 
-export function listActiveSafeguardingRoleHolders(privilegeTypes: string[]) {
+export function listActiveStandingRoleHolders(privilegeTypes: string[]) {
   return db('responsibility_assignments')
     .where({ status: 'active' })
     .whereIn('privilege_type', privilegeTypes)

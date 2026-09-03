@@ -723,6 +723,9 @@ export interface Checkout {
   inventoryItems?: CheckoutInventoryItem[];
   contactAttempts?: CheckoutContactAttempt[];
   checkinItems?: CheckInInventoryItem[];
+  // D17.05 (TODO.md Batch 27) item 109 — the resident's real financial
+  // picture, shown alongside the finance_cleared toggle.
+  financeSummary?: FinanceBalances;
 }
 
 export type ContactMethod = 'call' | 'email' | 'sms' | 'in_person';
@@ -754,6 +757,54 @@ export interface CheckoutInventoryItem {
   chargeAmount: string | null;
   createdAt: string;
 }
+
+// --- Finance (D17.05, TODO.md Batch 27) ---------------------------------
+
+export type FinancialEventType = 'hostel_fee' | 'deposit' | 'mess_fee_reference' | 'lost_key_charge' | 'late_fee' | 'damage_charge' | 'waiver' | 'refund';
+export type FinancialEventStatus = 'proposed' | 'finance_confirmed' | 'disputed' | 'reversed';
+export type FinancialEventSource = 'hostel_manual' | 'finance_authoritative';
+
+export interface FinancialEvent {
+  id: string;
+  studentId: string;
+  eventType: FinancialEventType;
+  amount: string;
+  status: FinancialEventStatus;
+  source: FinancialEventSource;
+  description: string;
+  evidenceNotes: string | null;
+  linkedReferenceType: string | null;
+  linkedReferenceId: string | null;
+  disputed: boolean;
+  disputeReason: string | null;
+  raisedBy: string;
+  raisedAt: string;
+  confirmedBy: string | null;
+  confirmedAt: string | null;
+  reversedBy: string | null;
+  reversedAt: string | null;
+  reversalReason: string | null;
+  createdAt: string;
+}
+
+// The two computed numbers alone — shared shape between Checkout's own
+// lightweight embed (financeSummary above) and the full Finance page
+// summary below.
+export interface FinanceBalances {
+  confirmedBalance: string;
+  pendingProjection: string;
+  hasUnresolvedDispute: boolean;
+}
+
+export interface FinancialSummary extends FinanceBalances {
+  studentId: string;
+  events: FinancialEvent[];
+}
+
+// D17.05 (TODO.md Batch 27) — the standing Finance Officer role, same
+// open-ended/campus-wide shape as SafeguardingPrivilegeType above, kept
+// its own type (a genuinely separate role family, not merged with it).
+export type FinanceOfficerPrivilegeType = 'finance_officer';
 
 // --- Admin (required @uos/auth endpoints) ---
 

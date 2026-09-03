@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { CoverageValidation, DutyPrivilegeType, DutyResolution, SafeguardingPrivilegeType } from '../types';
+import type { CoverageValidation, DutyPrivilegeType, DutyResolution, FinanceOfficerPrivilegeType, SafeguardingPrivilegeType } from '../types';
 import type { ResponsibilityAssignment } from './responsibilities';
 
 export async function createDutyAssignment(input: {
@@ -35,6 +35,20 @@ export async function createSafeguardingAssignment(input: {
   effectiveTo?: string;
 }) {
   const { assignment } = await api.post<{ assignment: ResponsibilityAssignment }>('/responsibilities/safeguarding', {
+    ...input,
+    scopeType: 'hostel',
+  });
+  return assignment;
+}
+
+// D17.05 (TODO.md Batch 27) — assigns the standing Finance Officer role.
+export async function createFinanceRoleAssignment(input: {
+  assigneeUserId: string;
+  privilegeType: FinanceOfficerPrivilegeType;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+}) {
+  const { assignment } = await api.post<{ assignment: ResponsibilityAssignment }>('/responsibilities/finance', {
     ...input,
     scopeType: 'hostel',
   });

@@ -23,6 +23,8 @@ export function responsibilitiesRouter(): Router {
   // D17.09 depth (TODO.md Batch 24) — assigning the standing safeguarding
   // team, same permission gate as every other assignment above.
   r.post('/safeguarding', canAssign, controller.createSafeguardingAssignment);
+  // D17.05 (TODO.md Batch 27) — assigning the standing Finance Officer role.
+  r.post('/finance', canAssign, controller.createFinanceRoleAssignment);
 
   r.get('/:assignmentId', canAssign, controller.getAssignment);
   r.post('/:assignmentId/revoke', canAssign, controller.revokeAssignment);

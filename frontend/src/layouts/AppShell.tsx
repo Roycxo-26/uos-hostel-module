@@ -69,6 +69,11 @@ const NAV_ITEMS: NavItem[] = [
     visible: (me) => isPlatformAdmin(me) || hasHostelRole(me, 'warden'),
     group: 'Hostel Core',
   },
+  // HOSTEL-GAP-ANALYSIS.md D17.05 (TODO.md Batch 27) — BR.md's own nav
+  // grouping lists "Fees / Deposits / Checkout / Clearance" together; not
+  // staff-only, unlike Privilege Changes above — every resident sees and
+  // disputes their own account here.
+  { path: '/finance', label: 'Finance', icon: ChartIcon, group: 'Hostel Core' },
 
   { path: '/cases?type=complaint', label: 'Help Desk / Complaints', icon: AlertIcon, group: 'Safety & Services' },
   { path: '/cases?type=incident', label: 'Safety & Incidents', icon: AlertIcon, group: 'Safety & Services' },

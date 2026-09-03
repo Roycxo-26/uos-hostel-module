@@ -22,6 +22,7 @@ import { errorMessage } from '../lib/errorMessage';
 import type {
   CoverageValidation,
   DutyPrivilegeType,
+  FinanceOfficerPrivilegeType,
   Hostel,
   NoticeScopeType,
   NoticeSeverity,
@@ -60,6 +61,13 @@ const SAFEGUARDING_LABELS: Record<SafeguardingPrivilegeType, string> = {
   counsellor: 'Counsellor',
 };
 const SAFEGUARDING_PRIVILEGE_TYPES = Object.keys(SAFEGUARDING_LABELS) as SafeguardingPrivilegeType[];
+
+// D17.05 (TODO.md Batch 27) — the standing Finance Officer role;
+// finance/service.ts's canConfirmFinance checks for it.
+const FINANCE_LABELS: Record<FinanceOfficerPrivilegeType, string> = {
+  finance_officer: 'Finance Officer',
+};
+const FINANCE_PRIVILEGE_TYPES = Object.keys(FINANCE_LABELS) as FinanceOfficerPrivilegeType[];
 
 type Tab = 'roster' | 'notices' | 'emergency-card';
 
@@ -113,9 +121,11 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
   const [loading, setLoading] = useState(true);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignSafeguardingOpen, setAssignSafeguardingOpen] = useState(false);
+  const [assignFinanceOpen, setAssignFinanceOpen] = useState(false);
 
   const dutyAssignments = assignments.filter((a) => a.privilegeType in DUTY_LABELS);
   const safeguardingAssignments = assignments.filter((a) => SAFEGUARDING_PRIVILEGE_TYPES.includes(a.privilegeType as SafeguardingPrivilegeType));
+  const financeAssignments = assignments.filter((a) => FINANCE_PRIVILEGE_TYPES.includes(a.privilegeType as FinanceOfficerPrivilegeType));
 
   async function load(id: string) {
     if (!id) return;
@@ -149,9 +159,12 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
             </Select>
           </FieldWrapper>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setAssignSafeguardingOpen(true)}>
             Assign safeguarding role
+          </Button>
+          <Button variant="secondary" onClick={() => setAssignFinanceOpen(true)}>
+            Assign Finance Officer
           </Button>
           <Button onClick={() => setAssignOpen(true)}>Assign duty</Button>
         </div>
@@ -234,6 +247,35 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
               </ul>
             </Card>
           )}
+
+          {/* D17.05 (TODO.md Batch 27) — the standing Finance Officer role;
+              finance/service.ts's canConfirmFinance checks for it,
+              alongside a Head Warden's own finance_event:confirm
+              permission. */}
+          <h2 className="mb-3 mt-8 text-sm font-semibold text-slate-900">Finance team</h2>
+          {financeAssignments.length === 0 ? (
+            <EmptyState
+              icon={<AlertIcon className="h-8 w-8" />}
+              title="No standing Finance Officer"
+              description="Assign one above — otherwise only a Head Warden can confirm a financial event."
+            />
+          ) : (
+            <Card>
+              <ul className="divide-y divide-slate-100">
+                {financeAssignments.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm sm:px-5">
+                    <div>
+                      <p className="font-medium text-slate-900">{FINANCE_LABELS[a.privilegeType as FinanceOfficerPrivilegeType] ?? a.privilegeType}</p>
+                      <p className="text-xs text-slate-500">{residentNames[a.assigneeUserId] ?? a.assigneeUserId.slice(0, 8)}</p>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {new Date(a.effectiveFrom).toLocaleString()} – {a.effectiveTo ? new Date(a.effectiveTo).toLocaleString() : 'open'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </>
       )}
 
@@ -241,6 +283,7 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
       {assignSafeguardingOpen && hostelId && (
         <AssignSafeguardingSheet hostelId={hostelId} onClose={() => setAssignSafeguardingOpen(false)} onAssigned={() => load(hostelId)} />
       )}
+      {assignFinanceOpen && hostelId && <AssignFinanceOfficerSheet hostelId={hostelId} onClose={() => setAssignFinanceOpen(false)} onAssigned={() => load(hostelId)} />}
     </div>
   );
 }
@@ -416,6 +459,76 @@ function AssignSafeguardingSheet({ hostelId, onClose, onAssigned }: { hostelId: 
           </FieldWrapper>
           <FieldWrapper label="To" htmlFor="as-to" hint="Optional — open-ended if blank">
             <Input id="as-to" type="datetime-local" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} />
+          </FieldWrapper>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+// D17.05 (TODO.md Batch 27) — mirrors AssignSafeguardingSheet above exactly
+// (a single fixed role, so no role <select> is needed).
+function AssignFinanceOfficerSheet({ hostelId, onClose, onAssigned }: { hostelId: string; onClose: () => void; onAssigned: () => void }) {
+  const [staff, setStaff] = useState<{ id: string; name: string }[]>([]);
+  const [assigneeUserId, setAssigneeUserId] = useState('');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [effectiveTo, setEffectiveTo] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    void casesApi.listCaseStaffDirectory().then(setStaff);
+  }, []);
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await dutyApi.createFinanceRoleAssignment({
+        assigneeUserId,
+        privilegeType: 'finance_officer',
+        effectiveFrom: effectiveFrom ? new Date(effectiveFrom).toISOString() : undefined,
+        effectiveTo: effectiveTo ? new Date(effectiveTo).toISOString() : undefined,
+      });
+      onAssigned();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="Assign a Finance Officer"
+      footer={
+        <Button fullWidth onClick={() => void handleSubmit()} disabled={submitting || !assigneeUserId}>
+          {submitting ? 'Assigning…' : 'Assign'}
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+        <Alert>This lets them confirm financial events as Finance-authoritative, alongside a Head Warden's own authority to do the same.</Alert>
+        <FieldWrapper label="Assigned to" htmlFor="af-assignee" required>
+          <Select id="af-assignee" value={assigneeUserId} onChange={(e) => setAssigneeUserId(e.target.value)}>
+            <option value="">Select staff</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </FieldWrapper>
+        <div className="grid grid-cols-2 gap-3">
+          <FieldWrapper label="From" htmlFor="af-from" hint="Optional — defaults to now">
+            <Input id="af-from" type="datetime-local" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+          </FieldWrapper>
+          <FieldWrapper label="To" htmlFor="af-to" hint="Optional — open-ended if blank">
+            <Input id="af-to" type="datetime-local" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} />
           </FieldWrapper>
         </div>
       </div>

@@ -7,6 +7,8 @@ import { redis } from '../../redis';
 import { recordAudit } from '../../utils/audit';
 import { authorizeApproval, recordApprovalResolution } from '../../utils/approvalResolution';
 import { notify, notifyCampusStaff } from '../../utils/notify';
+import * as financeRepo from '../finance/repository';
+import { computeBalances } from '../finance/types';
 import * as roomAccessRepo from '../roomAccess/repository';
 import { getSettings } from '../settings/service';
 import * as repo from './repository';
@@ -125,7 +127,14 @@ export async function getCheckout(user: AuthUser, id: string) {
   const inventoryItems = await repo.listInventoryItems(id);
   const contactAttempts = row.checkout_type === 'abandonment' ? await repo.listContactAttempts(id) : [];
   const checkinItems = await repo.listCheckinItemsForAllocation(row.allocation_id);
-  return { ...row, inventoryItems, contactAttempts, checkinItems };
+  // D17.05 (TODO.md Batch 27) item 109 — the resident's real financial
+  // picture, shown alongside the finance_cleared toggle instead of leaving
+  // it a blind boolean. A repo-to-repo read + the shared pure
+  // computeBalances() helper (see finance/types.ts's own comment) —
+  // finance_cleared itself stays the operational gate, unchanged.
+  const financeEvents = await financeRepo.listForStudent(row.student_id);
+  const financeSummary = computeBalances(financeEvents);
+  return { ...row, inventoryItems, contactAttempts, checkinItems, financeSummary };
 }
 
 // Same TRIAGEABLE_FROM-style widening cases/service.ts already established
@@ -302,6 +311,30 @@ export async function finalizeDamageAssessment(user: AuthUser, id: string) {
   await assertMilestoneEditable(before);
   const after = await repo.update(id, { damage_assessment_finalized_at: db.fn.now(), damage_assessment_finalized_by: user.sub });
   await recordAudit({ orgId: user.org_id, campusId: before.campus_id, actorUserId: user.sub, action: 'checkout.damage_assessment_finalized', entityType: 'checkout', entityId: id, before, after });
+
+  // D17.05 (TODO.md Batch 27) item 108's own catalogue entry — a
+  // damage_charge is a real financial event, not just two fields sitting
+  // on the checkout row. Raised once, the first time this milestone is
+  // finalized (`!before.damage_assessment_finalized_at` guards against a
+  // second finalize call before approval re-raising a duplicate) — repo-to-
+  // repo call, per this codebase's own "service.ts never imports another
+  // module's service.ts" rule. Stays hostel_manual/proposed like every
+  // other event; a Head Warden or standing Finance Officer still has to
+  // confirm it separately (see finance/service.ts).
+  if (!before.damage_assessment_finalized_at && before.damage_found && before.damage_charge_amount) {
+    await financeRepo.create({
+      org_id: user.org_id,
+      campus_id: before.campus_id,
+      student_id: before.student_id,
+      event_type: 'damage_charge',
+      amount: before.damage_charge_amount,
+      description: before.damage_description ?? `Damage charge from checkout ${id}`,
+      linked_reference_type: 'checkout',
+      linked_reference_id: id,
+      raised_by: user.sub,
+    });
+  }
+
   return after;
 }
 

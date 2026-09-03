@@ -559,6 +559,17 @@ function CheckoutDetailSheet({
         {isStaff && ['inspected', 'reopened'].includes(detail.status) && (
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <p className="text-sm font-medium text-slate-800">Clearances &amp; milestones</p>
+            {/* D17.05 (TODO.md Batch 27) item 109 — the resident's real
+                Finance picture, shown before the Finance clearance toggle
+                below instead of leaving it a blind boolean. The toggle
+                itself is unchanged — see TODO.md Batch 27's own note on
+                why finance_cleared stays the operational gate. */}
+            {detail.financeSummary && (
+              <p className="text-xs text-slate-500">
+                Finance: ₹{detail.financeSummary.confirmedBalance} confirmed, ₹{detail.financeSummary.pendingProjection} pending confirmation
+                {detail.financeSummary.hasUnresolvedDispute && ' — has an unresolved dispute'}
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 variant={detail.deskCleared ? 'secondary' : 'primary'}

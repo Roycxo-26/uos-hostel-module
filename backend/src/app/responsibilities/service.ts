@@ -11,6 +11,7 @@ import { DUTY_PRIVILEGE_TYPES, type PrivilegeType } from './types';
 import type {
   createAssignmentSchema,
   createDutyAssignmentSchema,
+  createFinanceRoleAssignmentSchema,
   createSafeguardingAssignmentSchema,
   listAssignmentsQuerySchema,
   revokeAssignmentSchema,
@@ -36,6 +37,7 @@ const PRIVILEGE_LABELS: Record<PrivilegeType, string> = {
   safeguarding_deputy: 'Deputy Safeguarding Lead',
   welfare_officer: 'Student Welfare Officer',
   counsellor: 'Counsellor',
+  finance_officer: 'Finance Officer',
 };
 
 /** BR §2: Room Head is scoped to a room, Floor/Side In-charge to a floor —
@@ -286,6 +288,48 @@ export async function createSafeguardingAssignment(user: AuthUser, input: z.infe
     type: 'responsibility.safeguarding_assigned',
     title: `You've been assigned ${PRIVILEGE_LABELS[input.privilegeType]} — restricted welfare/safeguarding case access`,
     link: '/cases',
+  });
+
+  return row;
+}
+
+/** D17.05 (TODO.md Batch 27) — assigns the standing Finance Officer role
+ * finance/service.ts's canConfirmFinance checks for. Same shape as
+ * createSafeguardingAssignment above (deliberately not merged with it —
+ * see createFinanceRoleAssignmentSchema's own comment). */
+export async function createFinanceRoleAssignment(user: AuthUser, input: z.infer<typeof createFinanceRoleAssignmentSchema>) {
+  const scope = await validateScope(input.scopeType, input.scopeId);
+
+  const row = await repo.create({
+    org_id: user.org_id,
+    campus_id: scope.campus_id,
+    assignee_user_id: input.assigneeUserId,
+    privilege_type: input.privilegeType,
+    scope_type: input.scopeType,
+    scope_id: input.scopeId,
+    effective_from: input.effectiveFrom ? new Date(input.effectiveFrom) : db.fn.now(),
+    effective_to: input.effectiveTo ? new Date(input.effectiveTo) : null,
+    assigned_by: user.sub,
+    status: 'active',
+  });
+
+  await recordAudit({
+    orgId: user.org_id,
+    campusId: scope.campus_id,
+    actorUserId: user.sub,
+    action: 'responsibility.finance_officer_assigned',
+    entityType: 'responsibility_assignment',
+    entityId: row.id,
+    after: row,
+  });
+
+  await notify({
+    orgId: user.org_id,
+    campusId: scope.campus_id,
+    userId: input.assigneeUserId,
+    type: 'responsibility.finance_officer_assigned',
+    title: `You've been assigned ${PRIVILEGE_LABELS[input.privilegeType]} — you can confirm financial events`,
+    link: '/finance',
   });
 
   return row;

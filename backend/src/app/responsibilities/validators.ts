@@ -94,3 +94,24 @@ export const createSafeguardingAssignmentSchema = z
     message: 'effectiveTo must be after effectiveFrom',
     path: ['effectiveTo'],
   });
+
+// D17.05 (TODO.md Batch 27) — the standing Finance Officer role. A fourth
+// schema, deliberately: same open-ended/campus-wide shape as the
+// safeguarding one just above, but a genuinely separate role family (see
+// finance/service.ts's canConfirmFinance) — kept its own schema rather than
+// widening createSafeguardingAssignmentSchema's own enum, same reasoning
+// that schema's own comment gives for not sharing with the room/floor or
+// duty-roster ones.
+export const createFinanceRoleAssignmentSchema = z
+  .object({
+    assigneeUserId: z.string().uuid(),
+    privilegeType: z.literal('finance_officer'),
+    scopeType: z.literal('hostel'),
+    scopeId: z.string().uuid(),
+    effectiveFrom: z.string().datetime().optional(),
+    effectiveTo: z.string().datetime().optional(),
+  })
+  .refine((v) => !v.effectiveTo || !v.effectiveFrom || v.effectiveTo > v.effectiveFrom, {
+    message: 'effectiveTo must be after effectiveFrom',
+    path: ['effectiveTo'],
+  });

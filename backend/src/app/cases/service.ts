@@ -44,7 +44,7 @@ const STANDING_SAFEGUARDING_PRIVILEGE_TYPES = ['safeguarding_lead', 'safeguardin
 
 async function canManageWelfareCase(user: AuthUser, caseId: string): Promise<boolean> {
   if (isSuperAdmin(user) || hasOrgRole(user, ['org_admin'])) return true;
-  const standing = await responsibilitiesRepo.findActiveSafeguardingRole(user.sub, STANDING_SAFEGUARDING_PRIVILEGE_TYPES);
+  const standing = await responsibilitiesRepo.findActiveStandingRole(user.sub, STANDING_SAFEGUARDING_PRIVILEGE_TYPES);
   if (standing) return true;
   const grant = await repo.findActiveAccessGrant(caseId, user.sub);
   return Boolean(grant);
@@ -68,7 +68,7 @@ async function canManageThisCase(user: AuthUser, row: { id: string; case_type: C
 async function isReadOnlyOnThisCase(user: AuthUser, row: { id: string; case_type: CaseType }): Promise<boolean> {
   if (!WELFARE_CASE_TYPES.has(row.case_type)) return false;
   if (isSuperAdmin(user) || hasOrgRole(user, ['org_admin'])) return false;
-  const standing = await responsibilitiesRepo.findActiveSafeguardingRole(user.sub, STANDING_SAFEGUARDING_PRIVILEGE_TYPES);
+  const standing = await responsibilitiesRepo.findActiveStandingRole(user.sub, STANDING_SAFEGUARDING_PRIVILEGE_TYPES);
   if (standing) return false;
   const grant = await repo.findActiveAccessGrant(row.id, user.sub);
   return Boolean(grant?.read_only);
@@ -91,7 +91,7 @@ async function assertCanMutate(user: AuthUser, before: Case): Promise<void> {
  * automatically see it. Standing role holders + anyone with a currently
  * active grant for this specific case. */
 async function notifyWelfareCaseTeam(orgId: string, campusId: string, caseId: string, entry: { type: string; title: string; link: string }) {
-  const standing = await responsibilitiesRepo.listActiveSafeguardingRoleHolders(STANDING_SAFEGUARDING_PRIVILEGE_TYPES);
+  const standing = await responsibilitiesRepo.listActiveStandingRoleHolders(STANDING_SAFEGUARDING_PRIVILEGE_TYPES);
   const grants = await repo.listAccessGrantsForCase(caseId);
   const activeGrantHolders = grants.filter((g) => !g.revoked_at && (!g.expires_at || new Date(g.expires_at) > new Date()));
   const userIds = new Set([...standing.map((r) => r.assignee_user_id), ...activeGrantHolders.map((g) => g.granted_to_user_id)]);

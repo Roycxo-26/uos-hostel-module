@@ -5,6 +5,7 @@ import type { PrivilegeType } from './types';
 import {
   createAssignmentSchema,
   createDutyAssignmentSchema,
+  createFinanceRoleAssignmentSchema,
   createSafeguardingAssignmentSchema,
   listAssignmentsQuerySchema,
   revokeAssignmentSchema,
@@ -24,6 +25,15 @@ export async function createSafeguardingAssignment(req: Request, res: Response, 
   try {
     const input = createSafeguardingAssignmentSchema.parse(req.body);
     created(res, { assignment: await service.createSafeguardingAssignment(req.user, input) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createFinanceRoleAssignment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = createFinanceRoleAssignmentSchema.parse(req.body);
+    created(res, { assignment: await service.createFinanceRoleAssignment(req.user, input) });
   } catch (err) {
     next(err);
   }

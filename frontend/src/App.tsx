@@ -9,6 +9,7 @@ import { Cases } from './pages/Cases';
 import { Checkout } from './pages/Checkout';
 import { Closures } from './pages/Closures';
 import { Dashboard } from './pages/Dashboard';
+import { Finance } from './pages/Finance';
 import { HostelStructure } from './pages/HostelStructure';
 import { Kitchen } from './pages/Kitchen';
 import { Login } from './pages/Login';
@@ -110,6 +111,10 @@ function AuthenticatedApp() {
               </StaffOnly>
             }
           />
+          {/* D17.05 (TODO.md Batch 27) — not staff-only, a resident sees
+              and disputes their own financial events; raising/confirming/
+              reversing is staff-gated server-side (see Finance.tsx). */}
+          <Route path="/finance" element={<Finance />} />
           <Route path="/mess" element={<Mess />} />
           <Route
             path="/kitchen"

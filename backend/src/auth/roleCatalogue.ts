@@ -73,12 +73,14 @@ const WARDEN_PERMISSIONS: readonly string[] = [
   'closure:manage',
   'guest_stay:manage',
   'privilege_change:manage',
+  'finance_event:manage',
 ];
 
 export const ROLE_PERMISSIONS: ReadonlyArray<{ role: string; permission: string }> = [
   ...WARDEN_PERMISSIONS.map((permission) => ({ role: 'warden', permission })),
   ...WARDEN_PERMISSIONS.map((permission) => ({ role: 'head_warden', permission })),
   { role: 'head_warden', permission: 'structure:configure' },
+  { role: 'head_warden', permission: 'finance_event:confirm' },
 ];
 
 /**

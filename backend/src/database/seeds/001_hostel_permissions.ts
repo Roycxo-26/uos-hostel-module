@@ -123,6 +123,11 @@ export async function seed(knex: Knex): Promise<void> {
     // service.ts's own comment on why there's no resident self-service
     // submit path, unlike applications/transfers/movements.
     'privilege_change:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.05 (TODO.md Batch 27) — raising/reversing
+    // a financial event (any Warden). Confirming one as Finance-
+    // authoritative is a stronger action — see finance_event:confirm
+    // below, Head Warden only, same reasoning as structure:configure.
+    'finance_event:manage',
   ];
 
   await knex('hostel.role_permissions').insert([
@@ -131,5 +136,11 @@ export async function seed(knex: Knex): Promise<void> {
     // (flow.md §5.2: "Configure hostel structure: Head Warden Full assigned").
     ...wardenPermissions.map((permission) => ({ role: 'head_warden', permission })),
     { role: 'head_warden', permission: 'structure:configure' },
+    // BR.md line 75: Finance Officer "posts/confirms" — see
+    // finance/service.ts's canConfirmFinance. Head Warden gets this
+    // directly; any other staff member needs a standing 'finance_officer'
+    // responsibility_assignments row instead (assigned via
+    // POST /responsibilities/finance), not this permission.
+    { role: 'head_warden', permission: 'finance_event:confirm' },
   ]);
 }

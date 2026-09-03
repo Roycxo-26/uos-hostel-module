@@ -11,6 +11,9 @@
 // five duty-roster roles above. See cases/service.ts's own comment on why
 // these are treated as campus-wide standing authority rather than scope-
 // matched like Room Head/Floor In-charge.
+// D17.05 (TODO.md Batch 27) — one more standing role, 'finance_officer'
+// (BR.md line 75's own role table), same campus-wide-standing shape as the
+// safeguarding roles just above; see finance/service.ts's canConfirmFinance.
 export type PrivilegeType =
   | 'attendance_taker'
   | 'verifier'
@@ -24,7 +27,8 @@ export type PrivilegeType =
   | 'safeguarding_lead'
   | 'safeguarding_deputy'
   | 'welfare_officer'
-  | 'counsellor';
+  | 'counsellor'
+  | 'finance_officer';
 
 // The BRD's own escalation ladder — resolveDutyAuthority (service.ts)
 // walks this in order.

@@ -179,6 +179,13 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   // no-response call both land here; distinct from 'declined' (the
   // guardian actively said no).
   failed: { label: 'Failed', tone: 'danger' },
+
+  // Financial event (D17.05, TODO.md Batch 27) — 'proposed' reuses the
+  // Allocation/Closure entry above (same meaning: raised, not yet
+  // authoritative).
+  finance_confirmed: { label: 'Finance Confirmed', tone: 'success' },
+  disputed: { label: 'Disputed', tone: 'warning' },
+  reversed: { label: 'Reversed', tone: 'neutral' },
 };
 
 function humanize(status: string): string {

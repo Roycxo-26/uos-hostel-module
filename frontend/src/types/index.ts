@@ -108,6 +108,8 @@ export interface PolicyDefaults {
   roomReadinessMinCleanlinessScore: number;
   // D17.13 (TODO.md Batch 30).
   offCampusOccupancyConfirmationIntervalDays: number;
+  // D17.23 (TODO.md Batch 30, item 124).
+  laundryDefaultSlaHours: number;
 }
 
 export interface TenantSettings {
@@ -1322,6 +1324,48 @@ export interface MessKitchenOutboxEvent {
   payload: Record<string, unknown>;
   occurredAt: string;
   deliveryStatus: 'queued' | 'delivered' | 'failed';
+}
+
+// --- Laundry & linen (D17.23, TODO.md Batch 30) -----------------------------
+
+export type LaundryServiceType =
+  | 'linen_exchange' | 'garment_laundry' | 'scheduled_floor_pickup' | 'drop_counter' | 'token_bag'
+  | 'self_service_washer' | 'outsourced_vendor' | 'emergency_linen_replacement' | 'paid_premium';
+export type LaundryOrderStatus =
+  | 'requested' | 'accepted' | 'picked_up' | 'in_process' | 'ready_for_return' | 'returned'
+  | 'resident_acknowledged' | 'closed' | 'count_dispute' | 'lost_item' | 'damaged_item'
+  | 'unclaimed_return' | 'cancelled' | 'reopened';
+
+export interface LaundryOrder {
+  id: string;
+  studentId: string;
+  serviceType: LaundryServiceType;
+  pickupDropLocation: string | null;
+  bagTokenId: string | null;
+  status: LaundryOrderStatus;
+  requestedPickupAt: string | null;
+  actualPickupAt: string | null;
+  pickupCount: number | null;
+  pickupWeight: string | null;
+  itemCategories: string[] | null;
+  conditionExceptionsAtHandoff: string | null;
+  providerReference: string | null;
+  slaHours: number;
+  slaBreachedAt: string | null;
+  returnedCount: number | null;
+  returnedConditionNotes: string | null;
+  returnedAt: string | null;
+  residentAcknowledgedAt: string | null;
+  exceptionReason: string | null;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  resolutionNotes: string | null;
+  chargeEntitlementReference: string | null;
+  complaintReference: string | null;
+  cancelledReason: string | null;
+  reopenReason: string | null;
+  createdBy: string;
+  createdAt: string;
 }
 
 export type LegalHoldStatus = 'none' | 'hold' | 'released';

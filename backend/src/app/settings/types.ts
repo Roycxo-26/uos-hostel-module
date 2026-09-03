@@ -76,6 +76,9 @@ export interface PolicyDefaults {
   roomReadinessMinCleanlinessScore: number;
   // D17.13 (TODO.md Batch 30) — §21.2 "periodic occupancy confirmation."
   offCampusOccupancyConfirmationIntervalDays: number;
+  // D17.23 (TODO.md Batch 30, item 124) — §24G.3's own "service SLA,"
+  // the default when an individual order doesn't override it.
+  laundryDefaultSlaHours: number;
 }
 
 export interface TenantSettings {
@@ -135,6 +138,7 @@ export const DEFAULT_POLICY: PolicyDefaults = {
   maintenanceVerificationSlaHours: 24,
   roomReadinessMinCleanlinessScore: 3,
   offCampusOccupancyConfirmationIntervalDays: 30,
+  laundryDefaultSlaHours: 48,
 };
 
 type StoredRow = {

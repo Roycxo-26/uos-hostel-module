@@ -1,0 +1,1 @@
+export { laundryRouter } from './route';

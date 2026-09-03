@@ -147,6 +147,9 @@ const NAV_ITEMS: NavItem[] = [
     group: 'Safety & Services',
   },
   { path: '/mess', label: 'Mess', icon: UtensilsIcon, group: 'Safety & Services' },
+  // HOSTEL-GAP-ANALYSIS.md D17.23 (TODO.md Batch 30, item 124) — not
+  // staff-only, a resident tracks their own order (see Laundry.tsx).
+  { path: '/laundry', label: 'Laundry', icon: ClipboardIcon, group: 'Safety & Services' },
   {
     path: '/kitchen',
     label: 'Kitchen',

@@ -219,6 +219,24 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   final_result: { label: 'Final Result', tone: 'success' },
   upheld: { label: 'Upheld', tone: 'neutral' },
   overturned: { label: 'Overturned', tone: 'info' },
+
+  // Laundry order (D17.23, TODO.md Batch 30) — 'requested'/'closed'/
+  // 'cancelled' reuse entries above. 'returned' and 'reopened' are
+  // domain-scoped: bare 'returned' above already means Application's
+  // "Returned for Correction" (a bad outcome), and bare 'reopened' means
+  // Case's own "Reopened" (also bad) — neither fits a laundry order
+  // simply coming back or a closed order being revisited administratively.
+  accepted: { label: 'Accepted', tone: 'info' },
+  picked_up: { label: 'Picked Up', tone: 'info' },
+  in_process: { label: 'In Process', tone: 'warning' },
+  ready_for_return: { label: 'Ready for Return', tone: 'info' },
+  'laundry:returned': { label: 'Returned', tone: 'success' },
+  resident_acknowledged: { label: 'Acknowledged', tone: 'success' },
+  count_dispute: { label: 'Count Disputed', tone: 'danger' },
+  lost_item: { label: 'Lost Item', tone: 'danger' },
+  damaged_item: { label: 'Damaged Item', tone: 'danger' },
+  unclaimed_return: { label: 'Unclaimed', tone: 'warning' },
+  'laundry:reopened': { label: 'Reopened', tone: 'warning' },
 };
 
 function humanize(status: string): string {
@@ -228,7 +246,7 @@ function humanize(status: string): string {
     .join(' ');
 }
 
-export function StatusPill({ status, domain }: { status: string; domain?: 'movement' | 'key' | 'custody' | 'closure' | 'visitor' }) {
+export function StatusPill({ status, domain }: { status: string; domain?: 'movement' | 'key' | 'custody' | 'closure' | 'visitor' | 'laundry' }) {
   const entry = (domain && STATUS_MAP[`${domain}:${status}`]) || STATUS_MAP[status] || { label: humanize(status), tone: 'neutral' as Tone };
   return (
     <span

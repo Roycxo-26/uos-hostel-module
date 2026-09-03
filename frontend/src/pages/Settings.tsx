@@ -286,6 +286,10 @@ function PolicySection({ initial, onSaved }: { initial: PolicyDefaults; onSaved:
             onChange={(e) => setValue({ ...value, offCampusOccupancyConfirmationIntervalDays: Number(e.target.value) })}
           />
         </FieldWrapper>
+        {/* D17.23 (TODO.md Batch 30, item 124) — added straight to this screen. */}
+        <FieldWrapper label="Laundry default SLA (hours)" htmlFor="p-laundry" hint="Default turnaround before a laundry order is flagged as breached">
+          <Input id="p-laundry" type="number" min={1} value={value.laundryDefaultSlaHours} onChange={(e) => setValue({ ...value, laundryDefaultSlaHours: Number(e.target.value) })} />
+        </FieldWrapper>
       </div>
       {error && <Alert>{error}</Alert>}
       <div className="mt-4 flex items-center gap-3">

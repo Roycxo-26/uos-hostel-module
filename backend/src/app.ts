@@ -34,6 +34,7 @@ import { maintenanceRouter } from './app/maintenance';
 import { offCampusRouter } from './app/offCampus';
 import { gamificationRouter } from './app/gamification';
 import { messKitchenRouter } from './app/messKitchen';
+import { laundryRouter } from './app/laundry';
 import { auditRouter } from './app/audit';
 import { adminRouter } from './app/admin';
 import { meRouter } from './app/me';
@@ -94,6 +95,7 @@ export function createApp() {
   app.use('/off-campus', offCampusRouter());
   app.use('/gamification', gamificationRouter());
   app.use('/mess-kitchen', messKitchenRouter());
+  app.use('/laundry', laundryRouter());
   app.use('/audit', auditRouter());
 
   // Required by @uos/auth's spec ("Required admin API endpoints" — the

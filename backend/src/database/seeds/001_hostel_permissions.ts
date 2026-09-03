@@ -159,6 +159,11 @@ export async function seed(knex: Knex): Promise<void> {
     // event write itself is a repo-to-repo call from another module's
     // service.ts, not a route this permission gates.
     'mess_kitchen:view_events',
+    // HOSTEL-GAP-ANALYSIS.md D17.23 (TODO.md Batch 30, item 124) —
+    // accepting/processing/resolving laundry orders. Requesting/
+    // acknowledging/disputing/cancelling stays self-service — see
+    // laundry/route.ts's own comment.
+    'laundry:manage',
   ];
 
   await knex('hostel.role_permissions').insert([

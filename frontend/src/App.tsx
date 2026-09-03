@@ -13,6 +13,7 @@ import { Finance } from './pages/Finance';
 import { Gamification } from './pages/Gamification';
 import { HostelStructure } from './pages/HostelStructure';
 import { Kitchen } from './pages/Kitchen';
+import { Laundry } from './pages/Laundry';
 import { Login } from './pages/Login';
 import { Maintenance } from './pages/Maintenance';
 import { OffCampusHousing } from './pages/OffCampusHousing';
@@ -128,6 +129,10 @@ function AuthenticatedApp() {
               running competitions and per-hostel enable/disable is
               staff-gated server-side (see Gamification.tsx). */}
           <Route path="/gamification" element={<Gamification />} />
+          {/* D17.23 (TODO.md Batch 30, item 124) — not staff-only, a
+              resident requests and tracks their own laundry order (see
+              Laundry.tsx). */}
+          <Route path="/laundry" element={<Laundry />} />
           {/* D17.06 (TODO.md Batch 28) — not staff-only, a host requests/
               tracks their own visitor; deciding/entry/exit/handover is
               staff-gated server-side (see Visitors.tsx). */}

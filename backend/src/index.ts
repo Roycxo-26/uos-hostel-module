@@ -17,6 +17,7 @@ import {
   flagOverdueMovementsAllTenants,
   sendMovementReturnRemindersAllTenants,
 } from './jobs/flagOverdueMovements';
+import { flagVisitorOverstaysAllTenants, expireVisitorPassesAllTenants } from './jobs/flagVisitorExceptions';
 import { restoreTemporaryRelocationsAllTenants } from './jobs/restoreTemporaryRelocations';
 
 const MIGRATIONS_CONFIG = {
@@ -307,6 +308,18 @@ async function boot(): Promise<void> {
   }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
   void flagOverdueKeysAllTenants();
 
+  // D17.06 (TODO.md Batch 28) — §14.5's two time-driven visitor exceptions.
+  // Same stopgap-but-flagged reasoning as every sweep above.
+  const visitorOverstaySweepTimer = setInterval(() => {
+    void flagVisitorOverstaysAllTenants();
+  }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
+  void flagVisitorOverstaysAllTenants();
+
+  const visitorPassExpirySweepTimer = setInterval(() => {
+    void expireVisitorPassesAllTenants();
+  }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
+  void expireVisitorPassesAllTenants();
+
   const shutdown = (signal: string): void => {
     console.log(`[${process.env.MODULE_NAME}] ${signal} received, shutting down`);
     clearInterval(noShowSweepTimer);
@@ -319,6 +332,8 @@ async function boot(): Promise<void> {
     clearInterval(offerExpirySweepTimer);
     clearInterval(noShowWarningSweepTimer);
     clearInterval(overdueKeySweepTimer);
+    clearInterval(visitorOverstaySweepTimer);
+    clearInterval(visitorPassExpirySweepTimer);
     server.close(() => {
       void Promise.all([sync ? sync.stop() : Promise.resolve(), registry.destroy()]).then(() => process.exit(0));
     });

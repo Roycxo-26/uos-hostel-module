@@ -14,6 +14,7 @@ import {
   releaseCustodySchema,
   reportKeyLostSchema,
   requestEntrySchema,
+  sendPackageReminderSchema,
   transferCustodyToSecuritySchema,
   updateLegalHoldSchema,
 } from './validators';
@@ -130,7 +131,15 @@ export async function listCustody(req: Request, res: Response, next: NextFunctio
   try {
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     const studentId = typeof req.query.studentId === 'string' ? req.query.studentId : undefined;
-    success(res, { custody: await service.listCustody({ status, studentId }) });
+    const custodyType = typeof req.query.custodyType === 'string' ? req.query.custodyType : undefined;
+    success(res, { custody: await service.listCustody({ status, studentId, custodyType }) });
+  } catch (err) {
+    next(err);
+  }
+}
+export async function sendPackageReminder(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    success(res, { custody: await service.sendPackageReminder(req.user, req.params.custodyId, sendPackageReminderSchema.parse(req.body)) });
   } catch (err) {
     next(err);
   }

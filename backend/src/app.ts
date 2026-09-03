@@ -29,6 +29,7 @@ import { closuresRouter } from './app/closures';
 import { guestStaysRouter } from './app/guestStays';
 import { privilegeChangesRouter } from './app/privilegeChanges';
 import { financeRouter } from './app/finance';
+import { visitorsRouter } from './app/visitors';
 import { auditRouter } from './app/audit';
 import { adminRouter } from './app/admin';
 import { meRouter } from './app/me';
@@ -84,6 +85,7 @@ export function createApp() {
   app.use('/guest-stays', guestStaysRouter());
   app.use('/privilege-changes', privilegeChangesRouter());
   app.use('/finance', financeRouter());
+  app.use('/visitors', visitorsRouter());
   app.use('/audit', auditRouter());
 
   // Required by @uos/auth's spec ("Required admin API endpoints" — the

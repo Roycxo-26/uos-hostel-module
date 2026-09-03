@@ -531,6 +531,11 @@ const CUSTODY_TYPE_LABELS: Record<CustodyType, string> = {
   key_or_token: 'Key/access token',
   security_evidence_transfer: 'Transferred to Security',
   package_dispute: 'Package dispute',
+  // D17.06 item 113 (TODO.md Batch 28) — normal-path packages are recorded
+  // and collected through the new Visitors page instead; this general
+  // custody screen still needs the label since listCustody (no filter)
+  // returns every custody_type, package_delivery included.
+  package_delivery: 'Package (front desk)',
 };
 
 function PropertyCustodyTab() {

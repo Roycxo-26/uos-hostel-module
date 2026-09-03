@@ -950,9 +950,11 @@ export interface MasterKeyLog {
   lostReason: string | null;
 }
 
+// D17.06 item 113 (TODO.md Batch 28) added 'package_delivery' alongside
+// the pre-existing 'package_dispute'.
 export type CustodyType =
   | 'found_property' | 'checkout_belongings' | 'emergency_secured' | 'confiscated_item'
-  | 'damaged_property' | 'key_or_token' | 'security_evidence_transfer' | 'package_dispute';
+  | 'damaged_property' | 'key_or_token' | 'security_evidence_transfer' | 'package_dispute' | 'package_delivery';
 export type CustodyStatus = 'in_custody' | 'claimed' | 'released' | 'transferred_to_security' | 'disposed';
 
 export interface PropertyCustody {
@@ -971,6 +973,66 @@ export interface PropertyCustody {
   releasedTo: string | null;
   disposalReason: string | null;
   retentionUntil: string | null;
+  // D17.06 item 113 — package-specific, present only on a 'package_delivery' row.
+  carrier: string | null;
+  trackingNumber: string | null;
+  packageType: string | null;
+  restrictedItemFlag: boolean;
+  arrivalNotifiedAt: string | null;
+  notificationAttempts: number;
+  identityVerifiedBy: string | null;
+  identityVerificationNotes: string | null;
+}
+
+// --- Visitors, temporary credential & front desk (D17.06, TODO.md Batch 28) ---
+
+export type VisitorRequestStatus =
+  | 'requested' | 'returned_for_information' | 'approved' | 'denied' | 'cancelled'
+  | 'pass_issued' | 'entered' | 'exited' | 'overstay' | 'expired' | 'closed' | 'reopened';
+export type VisitorHostType = 'resident' | 'day_scholar' | 'faculty' | 'staff' | 'department' | 'campus_office' | 'other';
+export type VisitorCategory = 'family' | 'friend' | 'vendor' | 'official' | 'delivery' | 'other';
+
+export interface VisitorRequest {
+  id: string;
+  hostUserId: string;
+  hostType: VisitorHostType;
+  visitorName: string;
+  visitorPhone: string;
+  visitorPhotoUrl: string | null;
+  visitorIdReference: string | null;
+  visitorCategory: VisitorCategory | null;
+  purpose: string;
+  requestedVisitStart: string;
+  requestedVisitEnd: string;
+  approvedZoneScope: string | null;
+  emergencyContact: string | null;
+  status: VisitorRequestStatus;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  credentialId: string | null;
+  credentialValidFrom: string | null;
+  credentialValidUntil: string | null;
+  credentialHotlisted: boolean;
+  credentialHotlistedReason: string | null;
+  enteredAt: string | null;
+  enteredBy: string | null;
+  exitedAt: string | null;
+  exitedBy: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  reopenReason: string | null;
+  cancelledReason: string | null;
+  cancelledBy: string | null;
+  createdAt: string;
+}
+
+export interface ShiftHandover {
+  activeVisitors: VisitorRequest[];
+  expectedArrivals: VisitorRequest[];
+  outstandingKeys: MasterKeyLog[];
+  uncollectedPackages: PropertyCustody[];
+  residentsOverdue: unknown[];
 }
 
 export type LegalHoldStatus = 'none' | 'hold' | 'released';

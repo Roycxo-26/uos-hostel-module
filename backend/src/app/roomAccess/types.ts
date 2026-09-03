@@ -57,6 +57,9 @@ export interface MasterKeyLogRow {
   lost_reason: string | null;
 }
 
+// D17.06 item 113 (TODO.md Batch 28) — 'package_delivery' added alongside
+// the pre-existing 'package_dispute' (that one stays the exception path;
+// this one is the normal received->collected flow).
 export type CustodyType =
   | 'found_property'
   | 'checkout_belongings'
@@ -65,7 +68,8 @@ export type CustodyType =
   | 'damaged_property'
   | 'key_or_token'
   | 'security_evidence_transfer'
-  | 'package_dispute';
+  | 'package_dispute'
+  | 'package_delivery';
 
 export type CustodyStatus = 'in_custody' | 'claimed' | 'released' | 'transferred_to_security' | 'disposed';
 
@@ -89,6 +93,17 @@ export interface PropertyCustodyRow {
   released_to: string | null;
   disposal_reason: string | null;
   retention_until: string | null;
+  // D17.06 item 113 — package-specific, nullable for every other
+  // custody_type (same "type-varying columns on a shared table" pattern
+  // Checkout's own checkout_type fields already use).
+  carrier: string | null;
+  tracking_number: string | null;
+  package_type: string | null;
+  restricted_item_flag: boolean;
+  arrival_notified_at: Date | null;
+  notification_attempts: number;
+  identity_verified_by: string | null;
+  identity_verification_notes: string | null;
 }
 
 export type LegalHoldStatus = 'none' | 'hold' | 'released';

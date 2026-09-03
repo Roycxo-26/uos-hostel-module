@@ -186,6 +186,21 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   finance_confirmed: { label: 'Finance Confirmed', tone: 'success' },
   disputed: { label: 'Disputed', tone: 'warning' },
   reversed: { label: 'Reversed', tone: 'neutral' },
+
+  // Visitor request (D17.06, TODO.md Batch 28) — 'requested'/'approved'/
+  // 'cancelled'/'closed'/'entered' reuse entries above (same meanings:
+  // 'entered' already means "in an active state needing attention",
+  // which fits a visitor currently on-site just as well as a room entry).
+  returned_for_information: { label: 'Needs Information', tone: 'warning' },
+  denied: { label: 'Denied', tone: 'danger' },
+  pass_issued: { label: 'Pass Issued', tone: 'info' },
+  exited: { label: 'Exited', tone: 'neutral' },
+  overstay: { label: 'Overstay', tone: 'danger' },
+  expired: { label: 'Expired', tone: 'danger' },
+  // Domain-scoped: bare `reopened` above means Case's "Reopened" (bad — a
+  // resolved complaint reopening), tone danger. A visitor request reopened
+  // for post-close review isn't that — closer to Closure's own reopened.
+  'visitor:reopened': { label: 'Reopened', tone: 'warning' },
 };
 
 function humanize(status: string): string {
@@ -195,7 +210,7 @@ function humanize(status: string): string {
     .join(' ');
 }
 
-export function StatusPill({ status, domain }: { status: string; domain?: 'movement' | 'key' | 'custody' | 'closure' }) {
+export function StatusPill({ status, domain }: { status: string; domain?: 'movement' | 'key' | 'custody' | 'closure' | 'visitor' }) {
   const entry = (domain && STATUS_MAP[`${domain}:${status}`]) || STATUS_MAP[status] || { label: humanize(status), tone: 'neutral' as Tone };
   return (
     <span

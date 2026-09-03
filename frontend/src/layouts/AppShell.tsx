@@ -18,6 +18,7 @@ import {
   LogOutIcon,
   MoreIcon,
   SettingsIcon,
+  UserIcon,
   UtensilsIcon,
   WrenchIcon,
 } from '../design-system/icons';
@@ -149,6 +150,9 @@ const NAV_ITEMS: NavItem[] = [
     group: 'Safety & Services',
   },
   { path: '/maintenance', label: 'Room Maintenance', icon: WrenchIcon, group: 'Safety & Services' },
+  // HOSTEL-GAP-ANALYSIS.md D17.06 (TODO.md Batch 28) — not staff-only, a
+  // host requests/tracks their own visitor (see Visitors.tsx).
+  { path: '/visitors', label: 'Visitors', icon: UserIcon, group: 'Safety & Services' },
 
   {
     path: '/reports',

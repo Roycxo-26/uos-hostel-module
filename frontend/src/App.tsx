@@ -25,6 +25,7 @@ import { Reports } from './pages/Reports';
 import { RoomAccess } from './pages/RoomAccess';
 import { Safety } from './pages/Safety';
 import { Settings } from './pages/Settings';
+import { Visitors } from './pages/Visitors';
 import { hasHostelRole, isPlatformAdmin } from './types';
 
 function AdminOnly({ children }: { children: JSX.Element }) {
@@ -115,6 +116,10 @@ function AuthenticatedApp() {
               and disputes their own financial events; raising/confirming/
               reversing is staff-gated server-side (see Finance.tsx). */}
           <Route path="/finance" element={<Finance />} />
+          {/* D17.06 (TODO.md Batch 28) — not staff-only, a host requests/
+              tracks their own visitor; deciding/entry/exit/handover is
+              staff-gated server-side (see Visitors.tsx). */}
+          <Route path="/visitors" element={<Visitors />} />
           <Route path="/mess" element={<Mess />} />
           <Route
             path="/kitchen"

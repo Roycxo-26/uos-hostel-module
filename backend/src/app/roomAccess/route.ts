@@ -31,6 +31,8 @@ export function roomAccessRouter(): Router {
   r.post('/custody', canManage, controller.recordCustody);
   r.get('/custody', canManage, controller.listCustody);
   r.post('/custody/:custodyId/notice', canManage, controller.addNoticeAttempt);
+  // D17.06 item 113 (TODO.md Batch 28).
+  r.post('/custody/:custodyId/remind', canManage, controller.sendPackageReminder);
   r.post('/custody/:custodyId/release', canManage, controller.releaseCustody);
   r.post('/custody/:custodyId/transfer-to-security', canManage, controller.transferCustodyToSecurity);
   r.post('/custody/:custodyId/dispose', canManage, controller.disposeCustody);

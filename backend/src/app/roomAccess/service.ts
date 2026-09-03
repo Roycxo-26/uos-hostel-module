@@ -4,7 +4,7 @@ import { db } from '../../db';
 import { ConflictError, NotFoundError } from '../../middlewares/errorHandler';
 import { recordAudit } from '../../utils/audit';
 import { resolveCampusId } from '../../utils/campusScope';
-import { notifyCampusStaff } from '../../utils/notify';
+import { notify, notifyCampusStaff } from '../../utils/notify';
 import * as repo from './repository';
 import type {
   addNoticeAttemptSchema,
@@ -19,6 +19,7 @@ import type {
   releaseCustodySchema,
   reportKeyLostSchema,
   requestEntrySchema,
+  sendPackageReminderSchema,
   transferCustodyToSecuritySchema,
   updateLegalHoldSchema,
 } from './validators';
@@ -317,6 +318,7 @@ export async function auditKeyFrequency(keyIdentifier: string, sinceDays = 30) {
 
 export async function recordCustody(user: AuthUser, input: z.infer<typeof recordCustodySchema>) {
   const campusId = resolveCampusId(user);
+  const isPackage = input.custodyType === 'package_delivery';
   const row = await repo.createCustody({
     org_id: user.org_id,
     campus_id: campusId,
@@ -331,7 +333,30 @@ export async function recordCustody(user: AuthUser, input: z.infer<typeof record
     storage_location: input.storageLocation ?? null,
     status: 'in_custody',
     retention_until: input.retentionUntil ?? null,
+    carrier: input.carrier ?? null,
+    tracking_number: input.trackingNumber ?? null,
+    package_type: input.packageType ?? null,
+    restricted_item_flag: input.restrictedItemFlag ?? false,
+    // D17.06 item 113 — the "notification-on-arrival" gap the analysis
+    // doc named directly: recordCustody used to write the row and tell
+    // nobody, package or not. A package with a resident on it is notified
+    // the moment it's logged; every other custody_type stays silent (a
+    // found umbrella doesn't page anyone).
+    ...(isPackage && input.studentId ? { arrival_notified_at: db.fn.now(), notification_attempts: 1 } : {}),
   });
+
+  if (isPackage && input.studentId) {
+    await notify({
+      orgId: user.org_id,
+      campusId,
+      userId: input.studentId,
+      type: 'property_custody.package_arrived',
+      title: `A package has arrived for you at the front desk${input.carrier ? ` (${input.carrier})` : ''}`,
+      body: input.itemDescription,
+      link: '/visitors',
+    });
+  }
+
   await recordAudit({
     orgId: user.org_id,
     campusId,
@@ -342,6 +367,40 @@ export async function recordCustody(user: AuthUser, input: z.infer<typeof record
     after: row,
   });
   return row;
+}
+
+/** D17.06 item 113 — a manual follow-up reminder, distinct from the
+ * automatic one recordCustody sends on arrival. Package-only: nothing else
+ * in this table has a "did the owner see it yet" nudge to send. */
+export async function sendPackageReminder(user: AuthUser, id: string, _input: z.infer<typeof sendPackageReminderSchema>) {
+  const before = await repo.findCustodyById(id);
+  if (!before) throw new NotFoundError('Property custody record');
+  if (before.custody_type !== 'package_delivery') throw new ConflictError('Reminders only apply to a package_delivery record');
+  if (before.status !== 'in_custody') throw new ConflictError(`Cannot remind on a record in status '${before.status}'`);
+  if (!before.student_id) throw new ConflictError('This package has no recipient to remind');
+
+  const after = await repo.updateCustody(id, { notification_attempts: before.notification_attempts + 1 });
+
+  await notify({
+    orgId: user.org_id,
+    campusId: before.campus_id,
+    userId: before.student_id,
+    type: 'property_custody.package_reminder',
+    title: 'Reminder — you still have an uncollected package at the front desk',
+    body: before.item_description,
+    link: '/visitors',
+  });
+  await recordAudit({
+    orgId: user.org_id,
+    campusId: before.campus_id,
+    actorUserId: user.sub,
+    action: 'property_custody.package_reminder_sent',
+    entityType: 'property_custody',
+    entityId: id,
+    before,
+    after,
+  });
+  return after;
 }
 
 export async function addNoticeAttempt(user: AuthUser, id: string, input: z.infer<typeof addNoticeAttemptSchema>) {
@@ -374,6 +433,11 @@ export async function releaseCustody(user: AuthUser, id: string, input: z.infer<
     claimant_user_id: input.claimantUserId ?? null,
     released_to: input.releasedTo,
     released_at: db.fn.now(),
+    // D17.06 item 113 — the "collection identity check" the analysis doc
+    // named as missing. Recorded whenever given, on any custody_type
+    // (claimant_user_id/released_at/released_to already generically cover
+    // "who and when"; this is the "how identity was confirmed" evidence).
+    ...(input.identityVerificationNotes !== undefined && { identity_verified_by: user.sub, identity_verification_notes: input.identityVerificationNotes }),
   });
   await recordAudit({
     orgId: user.org_id,
@@ -432,7 +496,7 @@ export async function disposeCustody(user: AuthUser, id: string, input: z.infer<
   return after;
 }
 
-export async function listCustody(filters: { status?: string; studentId?: string }) {
+export async function listCustody(filters: { status?: string; studentId?: string; custodyType?: string }) {
   return repo.listCustody(filters);
 }
 

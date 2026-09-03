@@ -102,15 +102,21 @@ export async function recordCustody(input: {
   conditionNotes?: string;
   storageLocation?: string;
   retentionUntil?: string;
+  // D17.06 item 113 (TODO.md Batch 28) — only meaningful for custodyType 'package_delivery'.
+  carrier?: string;
+  trackingNumber?: string;
+  packageType?: string;
+  restrictedItemFlag?: boolean;
 }) {
   const { custody } = await api.post<{ custody: PropertyCustody }>('/room-access/custody', input);
   return custody;
 }
 
-export async function listCustody(filters?: { status?: string; studentId?: string }) {
+export async function listCustody(filters?: { status?: string; studentId?: string; custodyType?: string }) {
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
   if (filters?.studentId) params.set('studentId', filters.studentId);
+  if (filters?.custodyType) params.set('custodyType', filters.custodyType);
   const qs = params.toString();
   const { custody } = await api.get<{ custody: PropertyCustody[] }>(`/room-access/custody${qs ? `?${qs}` : ''}`);
   return custody;
@@ -121,8 +127,14 @@ export async function addNoticeAttempt(id: string, note: string) {
   return custody;
 }
 
-export async function releaseCustody(id: string, releasedTo: string, claimantUserId?: string) {
-  const { custody } = await api.post<{ custody: PropertyCustody }>(`/room-access/custody/${id}/release`, { releasedTo, claimantUserId });
+// D17.06 item 113 — a manual reminder on top of the automatic arrival notification.
+export async function sendPackageReminder(id: string) {
+  const { custody } = await api.post<{ custody: PropertyCustody }>(`/room-access/custody/${id}/remind`, {});
+  return custody;
+}
+
+export async function releaseCustody(id: string, releasedTo: string, claimantUserId?: string, identityVerificationNotes?: string) {
+  const { custody } = await api.post<{ custody: PropertyCustody }>(`/room-access/custody/${id}/release`, { releasedTo, claimantUserId, identityVerificationNotes });
   return custody;
 }
 

@@ -85,10 +85,11 @@ export function updateCustody(id: string, data: Record<string, unknown>) {
     .then((rows) => rows[0]);
 }
 
-export function listCustody(filters: { status?: string; studentId?: string }) {
+export function listCustody(filters: { status?: string; studentId?: string; custodyType?: string }) {
   const query = db('property_custody').orderBy('created_at', 'desc');
   if (filters.status) query.andWhere({ status: filters.status });
   if (filters.studentId) query.andWhere({ student_id: filters.studentId });
+  if (filters.custodyType) query.andWhere({ custody_type: filters.custodyType });
   return query;
 }
 

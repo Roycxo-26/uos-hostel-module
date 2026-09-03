@@ -128,6 +128,12 @@ export async function seed(knex: Knex): Promise<void> {
     // authoritative is a stronger action — see finance_event:confirm
     // below, Head Warden only, same reasoning as structure:configure.
     'finance_event:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.06 (TODO.md Batch 28) — deciding/entering/
+    // exiting/closing/reopening/hotlisting a visitor request, plus viewing
+    // the shift handover. Requesting/resubmitting/cancelling stays
+    // self-service by the host, no permission needed — see
+    // visitors/route.ts's own comment.
+    'visitor:manage',
   ];
 
   await knex('hostel.role_permissions').insert([

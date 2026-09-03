@@ -22,6 +22,7 @@ import { flagMaintenanceSlaBreachesAllTenants } from './jobs/flagMaintenanceSlaB
 import { flagOffCampusConfirmationDueAllTenants } from './jobs/flagOffCampusConfirmationDue';
 import { flagLaundrySlaBreachesAllTenants } from './jobs/flagLaundrySlaBreaches';
 import { flagFacilityBookingNoShowsAllTenants } from './jobs/flagFacilityBookingNoShows';
+import { flagRoommateRequestsExpiredAllTenants } from './jobs/flagRoommateRequestsExpired';
 import { restoreTemporaryRelocationsAllTenants } from './jobs/restoreTemporaryRelocations';
 
 const MIGRATIONS_CONFIG = {
@@ -354,6 +355,13 @@ async function boot(): Promise<void> {
   }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
   void flagFacilityBookingNoShowsAllTenants();
 
+  // D17.26 (TODO.md Batch 30, item 126) — §24J.3's roommate-request
+  // expiry. Same stopgap-but-flagged reasoning as every sweep above.
+  const roommateExpirySweepTimer = setInterval(() => {
+    void flagRoommateRequestsExpiredAllTenants();
+  }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
+  void flagRoommateRequestsExpiredAllTenants();
+
   const shutdown = (signal: string): void => {
     console.log(`[${process.env.MODULE_NAME}] ${signal} received, shutting down`);
     clearInterval(noShowSweepTimer);
@@ -372,6 +380,7 @@ async function boot(): Promise<void> {
     clearInterval(offCampusConfirmationSweepTimer);
     clearInterval(laundrySlaSweepTimer);
     clearInterval(facilityNoShowSweepTimer);
+    clearInterval(roommateExpirySweepTimer);
     server.close(() => {
       void Promise.all([sync ? sync.stop() : Promise.resolve(), registry.destroy()]).then(() => process.exit(0));
     });

@@ -265,6 +265,12 @@ function ApplySheet({ open, onClose, onSubmitted }: { open: boolean; onClose: ()
   const [applicationType, setApplicationType] = useState<ApplicationType>('new_term');
   const [notes, setNotes] = useState('');
   const [attachments, setAttachments] = useState<ApplicationAttachment[]>([]);
+  // D17.26 (TODO.md Batch 30, item 126) — non-sensitive roommate-
+  // compatibility questions only, per D17-LAW-37; all optional.
+  const [quietStudyPreference, setQuietStudyPreference] = useState('');
+  const [sleepSchedule, setSleepSchedule] = useState('');
+  const [smokingPreference, setSmokingPreference] = useState('');
+  const [cleanlinessPreference, setCleanlinessPreference] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -272,13 +278,23 @@ function ApplySheet({ open, onClose, onSubmitted }: { open: boolean; onClose: ()
     setSubmitting(true);
     setError(null);
     try {
-      await api.submitApplication({ term, applicationType, preferences: notes ? { notes } : undefined, attachments });
+      const preferences: Record<string, string> = {};
+      if (notes) preferences.notes = notes;
+      if (quietStudyPreference) preferences.quietStudyPreference = quietStudyPreference;
+      if (sleepSchedule) preferences.sleepSchedule = sleepSchedule;
+      if (smokingPreference) preferences.smokingPreference = smokingPreference;
+      if (cleanlinessPreference) preferences.cleanlinessPreference = cleanlinessPreference;
+      await api.submitApplication({ term, applicationType, preferences: Object.keys(preferences).length > 0 ? preferences : undefined, attachments });
       onSubmitted();
       onClose();
       setTerm('');
       setApplicationType('new_term');
       setNotes('');
       setAttachments([]);
+      setQuietStudyPreference('');
+      setSleepSchedule('');
+      setSmokingPreference('');
+      setCleanlinessPreference('');
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -314,6 +330,44 @@ function ApplySheet({ open, onClose, onSubmitted }: { open: boolean; onClose: ()
         <FieldWrapper label="Notes / preferences" htmlFor="apply-notes">
           <Textarea id="apply-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any room or accessibility preferences" />
         </FieldWrapper>
+        {/* D17.26 (TODO.md Batch 30, item 126) — optional, non-sensitive
+            roommate-compatibility questions only (D17-LAW-37). Answering
+            these never affects eligibility. */}
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Roommate compatibility (optional)</p>
+        <div className="grid grid-cols-2 gap-3">
+          <FieldWrapper label="Study environment" htmlFor="apply-quiet">
+            <Select id="apply-quiet" value={quietStudyPreference} onChange={(e) => setQuietStudyPreference(e.target.value)}>
+              <option value="">No preference</option>
+              <option value="quiet_focused">Quiet / focused</option>
+              <option value="social">Social</option>
+              <option value="flexible">Flexible</option>
+            </Select>
+          </FieldWrapper>
+          <FieldWrapper label="Sleep schedule" htmlFor="apply-sleep">
+            <Select id="apply-sleep" value={sleepSchedule} onChange={(e) => setSleepSchedule(e.target.value)}>
+              <option value="">No preference</option>
+              <option value="early_riser">Early riser</option>
+              <option value="night_owl">Night owl</option>
+              <option value="flexible">Flexible</option>
+            </Select>
+          </FieldWrapper>
+          <FieldWrapper label="Smoking" htmlFor="apply-smoking">
+            <Select id="apply-smoking" value={smokingPreference} onChange={(e) => setSmokingPreference(e.target.value)}>
+              <option value="">No preference</option>
+              <option value="non_smoking">Non-smoking</option>
+              <option value="smoking">Smoking</option>
+              <option value="no_preference">No preference either way</option>
+            </Select>
+          </FieldWrapper>
+          <FieldWrapper label="Tidiness" htmlFor="apply-tidy">
+            <Select id="apply-tidy" value={cleanlinessPreference} onChange={(e) => setCleanlinessPreference(e.target.value)}>
+              <option value="">No preference</option>
+              <option value="very_tidy">Very tidy</option>
+              <option value="moderate">Moderate</option>
+              <option value="relaxed">Relaxed</option>
+            </Select>
+          </FieldWrapper>
+        </div>
         <FieldWrapper label="Attachments" htmlFor="apply-attachments" hint="Link any required documents (ID proof, income certificate, etc.)">
           <AttachmentsEditor value={attachments} onChange={setAttachments} />
         </FieldWrapper>

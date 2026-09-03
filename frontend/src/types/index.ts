@@ -110,6 +110,8 @@ export interface PolicyDefaults {
   offCampusOccupancyConfirmationIntervalDays: number;
   // D17.23 (TODO.md Batch 30, item 124).
   laundryDefaultSlaHours: number;
+  // D17.26 (TODO.md Batch 30, item 126).
+  roommateRequestExpiryDays: number;
 }
 
 export interface TenantSettings {
@@ -278,7 +280,20 @@ export interface HostelApplication {
   studentId: string;
   term: string;
   applicationType: ApplicationType;
-  preferences: { hostelId?: string; roomType?: string; accessibilityNeed?: string; notes?: string };
+  preferences: {
+    hostelId?: string;
+    roomType?: string;
+    accessibilityNeed?: string;
+    notes?: string;
+    // D17.26 (TODO.md Batch 30, item 126) — see D17-LAW-37's own
+    // non-sensitive-only boundary in the backend validator's comment.
+    quietStudyPreference?: 'quiet_focused' | 'social' | 'flexible';
+    sleepSchedule?: 'early_riser' | 'night_owl' | 'flexible';
+    roomEnvironmentPreference?: string;
+    smokingPreference?: 'smoking' | 'non_smoking' | 'no_preference';
+    cleanlinessPreference?: 'very_tidy' | 'moderate' | 'relaxed';
+    preferredGroupNote?: string;
+  };
   attachments: ApplicationAttachment[];
   status: ApplicationStatus;
   decisionReason: string | null;

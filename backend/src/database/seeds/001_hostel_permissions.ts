@@ -171,6 +171,13 @@ export async function seed(knex: Knex): Promise<void> {
     // own programme without this permission — see residenceLife/
     // service.ts's own canOperateThisProgramme.
     'residence_life:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.26 (TODO.md Batch 30, item 126) — staff
+    // oversight (listing every request) and the allocation-time
+    // compatibility recommendation. The mutual-consent flow itself
+    // (request/respond/revoke) is entirely resident self-service, not
+    // gated by this permission at all — see roommate/route.ts's own
+    // comment.
+    'roommate:manage',
   ];
 
   await knex('hostel.role_permissions').insert([

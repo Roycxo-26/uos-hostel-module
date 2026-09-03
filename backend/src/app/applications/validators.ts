@@ -39,6 +39,18 @@ export const submitApplicationSchema = z.object({
       roomType: z.string().trim().max(40).optional(),
       accessibilityNeed: z.string().trim().max(500).optional(),
       notes: z.string().trim().max(1000).optional(),
+      // D17.26 (TODO.md Batch 30, item 126) §24J.2 — the existing
+      // preferences object expanded into the BRD's own non-sensitive
+      // compatibility questions. D17-LAW-37 is why this list stops
+      // exactly where it does: no religion, caste, race/ethnicity,
+      // health, orientation, political-view or similar protected/
+      // sensitive field is ever collected here for routine matching.
+      quietStudyPreference: z.enum(['quiet_focused', 'social', 'flexible']).optional(),
+      sleepSchedule: z.enum(['early_riser', 'night_owl', 'flexible']).optional(),
+      roomEnvironmentPreference: z.string().trim().max(300).optional(),
+      smokingPreference: z.enum(['smoking', 'non_smoking', 'no_preference']).optional(),
+      cleanlinessPreference: z.enum(['very_tidy', 'moderate', 'relaxed']).optional(),
+      preferredGroupNote: z.string().trim().max(500).optional(),
     })
     .default({}),
   attachments: z.array(attachmentSchema).max(20).default([]),

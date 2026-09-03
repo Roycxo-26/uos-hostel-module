@@ -15,6 +15,7 @@ import { HostelStructure } from './pages/HostelStructure';
 import { Kitchen } from './pages/Kitchen';
 import { Laundry } from './pages/Laundry';
 import { ResidenceLife } from './pages/ResidenceLife';
+import { Roommate } from './pages/Roommate';
 import { Login } from './pages/Login';
 import { Maintenance } from './pages/Maintenance';
 import { OffCampusHousing } from './pages/OffCampusHousing';
@@ -138,6 +139,10 @@ function AuthenticatedApp() {
               resident requests a booking or proposes a programme (see
               ResidenceLife.tsx). */}
           <Route path="/residence-life" element={<ResidenceLife />} />
+          {/* D17.26 (TODO.md Batch 30, item 126) — not staff-only, this
+              is almost entirely a resident-to-resident consent workflow
+              (see Roommate.tsx). */}
+          <Route path="/roommate" element={<Roommate />} />
           {/* D17.06 (TODO.md Batch 28) — not staff-only, a host requests/
               tracks their own visitor; deciding/entry/exit/handover is
               staff-gated server-side (see Visitors.tsx). */}

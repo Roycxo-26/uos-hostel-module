@@ -79,6 +79,9 @@ export interface PolicyDefaults {
   // D17.23 (TODO.md Batch 30, item 124) — §24G.3's own "service SLA,"
   // the default when an individual order doesn't override it.
   laundryDefaultSlaHours: number;
+  // D17.26 (TODO.md Batch 30, item 126) — §24J.3's consent request
+  // expiry window.
+  roommateRequestExpiryDays: number;
 }
 
 export interface TenantSettings {
@@ -139,6 +142,7 @@ export const DEFAULT_POLICY: PolicyDefaults = {
   roomReadinessMinCleanlinessScore: 3,
   offCampusOccupancyConfirmationIntervalDays: 30,
   laundryDefaultSlaHours: 48,
+  roommateRequestExpiryDays: 7,
 };
 
 type StoredRow = {

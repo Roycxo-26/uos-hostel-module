@@ -58,6 +58,9 @@ const NAV_ITEMS: NavItem[] = [
     group: 'Hostel Core',
   },
   { path: '/applications', label: 'Applications', icon: ClipboardIcon, group: 'Hostel Core', primaryMobile: true },
+  // HOSTEL-GAP-ANALYSIS.md D17.26 (TODO.md Batch 30, item 126) — not
+  // staff-only, almost entirely a resident-to-resident consent workflow.
+  { path: '/roommate', label: 'Roommate Preference', icon: UserIcon, group: 'Hostel Core' },
   { path: '/allocations', label: 'Allocations', icon: BedIcon, group: 'Hostel Core', primaryMobile: true },
   { path: '/movement', label: 'Leave & Headcount', icon: DoorIcon, group: 'Hostel Core', primaryMobile: true },
   { path: '/checkout', label: 'Checkout', icon: KeyIcon, group: 'Hostel Core' },

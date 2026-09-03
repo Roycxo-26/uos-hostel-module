@@ -243,6 +243,11 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   // entries above; residence-life programme status reuses 'requested'/
   // 'approved'/'rejected'/'in_progress'/'completed'/'cancelled' too.
   no_show: { label: 'No-Show', tone: 'danger' },
+
+  // Roommate request (D17.26, TODO.md Batch 30) — 'pending'/'accepted'/
+  // 'expired' all reuse entries above.
+  declined: { label: 'Declined', tone: 'neutral' },
+  revoked: { label: 'Revoked', tone: 'neutral' },
 };
 
 function humanize(status: string): string {

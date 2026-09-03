@@ -290,6 +290,10 @@ function PolicySection({ initial, onSaved }: { initial: PolicyDefaults; onSaved:
         <FieldWrapper label="Laundry default SLA (hours)" htmlFor="p-laundry" hint="Default turnaround before a laundry order is flagged as breached">
           <Input id="p-laundry" type="number" min={1} value={value.laundryDefaultSlaHours} onChange={(e) => setValue({ ...value, laundryDefaultSlaHours: Number(e.target.value) })} />
         </FieldWrapper>
+        {/* D17.26 (TODO.md Batch 30, item 126) — added straight to this screen. */}
+        <FieldWrapper label="Roommate request expiry (days)" htmlFor="p-roommate" hint="How long a mutual roommate request waits for a response before it expires">
+          <Input id="p-roommate" type="number" min={1} value={value.roommateRequestExpiryDays} onChange={(e) => setValue({ ...value, roommateRequestExpiryDays: Number(e.target.value) })} />
+        </FieldWrapper>
       </div>
       {error && <Alert>{error}</Alert>}
       <div className="mt-4 flex items-center gap-3">

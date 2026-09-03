@@ -253,6 +253,28 @@ function PolicySection({ initial, onSaved }: { initial: PolicyDefaults; onSaved:
             onChange={(e) => setValue({ ...value, movementReturnReminderMinutes: Number(e.target.value) })}
           />
         </FieldWrapper>
+        {/* D17.08 (TODO.md Batch 29) — added straight to this screen, not
+            left dead like enableVisitorSlots/visitorSlot* sat for several
+            batches before Batch 28 finally wired them up. */}
+        <FieldWrapper label="Maintenance ticket verification SLA (hours)" htmlFor="p-maintsla" hint="Floor Warden verification breach escalates to Warden/Head Warden">
+          <Input
+            id="p-maintsla"
+            type="number"
+            min={1}
+            value={value.maintenanceVerificationSlaHours}
+            onChange={(e) => setValue({ ...value, maintenanceVerificationSlaHours: Number(e.target.value) })}
+          />
+        </FieldWrapper>
+        <FieldWrapper label="Room readiness minimum cleanliness score" htmlFor="p-roomready" hint="1-5 scale; used by the composite room-ready-for-reuse gate">
+          <Input
+            id="p-roomready"
+            type="number"
+            min={1}
+            max={5}
+            value={value.roomReadinessMinCleanlinessScore}
+            onChange={(e) => setValue({ ...value, roomReadinessMinCleanlinessScore: Number(e.target.value) })}
+          />
+        </FieldWrapper>
       </div>
       {error && <Alert>{error}</Alert>}
       <div className="mt-4 flex items-center gap-3">

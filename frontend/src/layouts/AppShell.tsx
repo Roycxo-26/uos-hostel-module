@@ -44,7 +44,8 @@ interface NavItem {
 // - "Safety & Services" groups UOS-134's movement/headcount alongside
 //   UOS-135 (split into Help Desk/Complaints vs Safety/Incidents, per the
 //   BR's own two-section split — see Cases.tsx's own comment on why one
-//   page serves both) and the Mess/Kitchen/Maintenance placeholders.
+//   page serves both), Mess/Kitchen (still placeholders) and Maintenance
+//   (real since D17.08, TODO.md Batch 29 — no longer a placeholder).
 // - "Admin" is Reports (TODO.md Batch 9) and Settings.
 const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: HomeIcon, primaryMobile: true },

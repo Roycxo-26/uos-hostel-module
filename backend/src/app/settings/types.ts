@@ -63,6 +63,12 @@ export interface PolicyDefaults {
   // least one logged contact attempt, before an abandonment checkout can
   // be approved without the resident's own participation.
   abandonmentLegalWaitingPeriodDays: number;
+  // D17.08 (TODO.md Batch 29) — §16.4 "Floor Warden SLA is configurable
+  // by priority"; this build uses one flat SLA rather than a per-priority
+  // matrix (named simplification, see maintenance/service.ts). §16.7's
+  // composite room-readiness gate's own cleanliness threshold (1-5 scale).
+  maintenanceVerificationSlaHours: number;
+  roomReadinessMinCleanlinessScore: number;
 }
 
 export interface TenantSettings {
@@ -118,6 +124,8 @@ export const DEFAULT_POLICY: PolicyDefaults = {
   movementEscalation3hHours: 3,
   movementEscalation12hHours: 12,
   abandonmentLegalWaitingPeriodDays: 7,
+  maintenanceVerificationSlaHours: 24,
+  roomReadinessMinCleanlinessScore: 3,
 };
 
 type StoredRow = {

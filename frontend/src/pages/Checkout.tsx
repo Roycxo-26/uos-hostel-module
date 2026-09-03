@@ -612,6 +612,21 @@ function CheckoutDetailSheet({
                 Room: {detail.roomReadyForReuseAt ? 'Ready ✓' : 'Mark ready'}
               </Button>
             </div>
+            {/* D17.08 (TODO.md Batch 29) item 119 — §16.7's composite
+                room-readiness gate, shown next to the "Mark ready" button
+                above instead of replacing it (same "informed, not
+                automatic, human gate" reasoning as the Finance summary
+                above). */}
+            {detail.roomReadiness && (
+              <p className="text-xs text-slate-500">
+                Room readiness: {detail.roomReadiness.ready ? 'all gates clear ✓' : 'not all gates clear —'}{' '}
+                {!detail.roomReadiness.ready &&
+                  Object.entries(detail.roomReadiness.gates)
+                    .filter(([, ok]) => !ok)
+                    .map(([gate]) => gate.replace(/([A-Z])/g, ' $1').toLowerCase())
+                    .join(', ')}
+              </p>
+            )}
 
             <p className="text-sm font-medium text-slate-800">Approve</p>
             {!fiveMilestonesClear && (

@@ -18,6 +18,7 @@ import {
   sendMovementReturnRemindersAllTenants,
 } from './jobs/flagOverdueMovements';
 import { flagVisitorOverstaysAllTenants, expireVisitorPassesAllTenants } from './jobs/flagVisitorExceptions';
+import { flagMaintenanceSlaBreachesAllTenants } from './jobs/flagMaintenanceSlaBreaches';
 import { restoreTemporaryRelocationsAllTenants } from './jobs/restoreTemporaryRelocations';
 
 const MIGRATIONS_CONFIG = {
@@ -320,6 +321,14 @@ async function boot(): Promise<void> {
   }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
   void expireVisitorPassesAllTenants();
 
+  // D17.08 (TODO.md Batch 29) — §16.3/16.4's Floor Warden verification SLA
+  // breach escalation. Same stopgap-but-flagged reasoning as every sweep
+  // above.
+  const maintenanceSlaSweepTimer = setInterval(() => {
+    void flagMaintenanceSlaBreachesAllTenants();
+  }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
+  void flagMaintenanceSlaBreachesAllTenants();
+
   const shutdown = (signal: string): void => {
     console.log(`[${process.env.MODULE_NAME}] ${signal} received, shutting down`);
     clearInterval(noShowSweepTimer);
@@ -334,6 +343,7 @@ async function boot(): Promise<void> {
     clearInterval(overdueKeySweepTimer);
     clearInterval(visitorOverstaySweepTimer);
     clearInterval(visitorPassExpirySweepTimer);
+    clearInterval(maintenanceSlaSweepTimer);
     server.close(() => {
       void Promise.all([sync ? sync.stop() : Promise.resolve(), registry.destroy()]).then(() => process.exit(0));
     });

@@ -9,7 +9,10 @@ import { authorizeApproval, recordApprovalResolution } from '../../utils/approva
 import { notify, notifyCampusStaff } from '../../utils/notify';
 import * as financeRepo from '../finance/repository';
 import { computeBalances } from '../finance/types';
+import * as maintenanceRepo from '../maintenance/repository';
+import { computeRoomReadiness } from '../maintenance/types';
 import * as roomAccessRepo from '../roomAccess/repository';
+import * as safetyRepo from '../safety/repository';
 import { getSettings } from '../settings/service';
 import * as repo from './repository';
 import { PREREQUISITE_CHECKLIST_KEYS_BY_TYPE } from './validators';
@@ -134,7 +137,38 @@ export async function getCheckout(user: AuthUser, id: string) {
   // finance_cleared itself stays the operational gate, unchanged.
   const financeEvents = await financeRepo.listForStudent(row.student_id);
   const financeSummary = computeBalances(financeEvents);
-  return { ...row, inventoryItems, contactAttempts, checkinItems, financeSummary };
+
+  // D17.08 (TODO.md Batch 29) item 119 — §16.7's composite room-readiness
+  // gate, shown alongside the existing markRoomReadyForReuse toggle
+  // instead of replacing it (same "informed, not automatic, human gate"
+  // reasoning as financeSummary above). Repo-to-repo reads only, mirroring
+  // maintenance/service.ts's own fetchRoomReadinessGates exactly — that
+  // function itself can't be imported here (it's another module's
+  // service.ts), so the two must be kept in sync by hand if either
+  // changes.
+  const bed = await db('beds').where({ id: row.bed_id }).first('room_id');
+  let roomReadiness = null;
+  if (bed?.room_id) {
+    const [activeAllocation, housekeepingTask, inspection, hasUnresolvedCritical, safetyBlock, settings] = await Promise.all([
+      db('allocations').join('beds', 'beds.id', 'allocations.bed_id').where({ 'beds.room_id': bed.room_id, 'allocations.status': 'checked_in_active' }).first('allocations.id'),
+      maintenanceRepo.findLatestHousekeepingTaskForRoom(bed.room_id),
+      maintenanceRepo.findLatestInspectionForRoom(bed.room_id),
+      maintenanceRepo.hasUnresolvedCriticalTicket(bed.room_id),
+      safetyRepo.findBedSafetyBlock(row.bed_id),
+      getSettings(user.org_id),
+    ]);
+    const minScore = settings.policyDefaults.roomReadinessMinCleanlinessScore;
+    roomReadiness = computeRoomReadiness({
+      physicalVacancy: !activeAllocation,
+      inventoryKeyClearance: Boolean(row.item_return_verified_at),
+      housekeepingComplete: housekeepingTask?.status === 'completed',
+      inspectionPassed: Boolean(inspection && inspection.cleanliness_score >= minScore && !inspection.safety_hazard_flag),
+      safetyClear: !safetyBlock.blocked,
+      maintenanceClear: !hasUnresolvedCritical,
+    });
+  }
+
+  return { ...row, inventoryItems, contactAttempts, checkinItems, financeSummary, roomReadiness };
 }
 
 // Same TRIAGEABLE_FROM-style widening cases/service.ts already established

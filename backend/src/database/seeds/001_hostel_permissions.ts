@@ -134,6 +134,15 @@ export async function seed(knex: Knex): Promise<void> {
     // self-service by the host, no permission needed — see
     // visitors/route.ts's own comment.
     'visitor:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.08 (TODO.md Batch 29) — assigning/
+    // resolving maintenance tickets, housekeeping tasks and cleanliness
+    // inspections. Reporting a ticket and confirming/reopening/cancelling
+    // it stays self-service — see maintenance/route.ts's own comment.
+    // Floor Warden ticket verification is NOT gated by this permission —
+    // it's checked separately in the service against the existing
+    // responsibility-assignment system (any Warden/Head Warden acts as
+    // the fallback, which this permission does cover).
+    'maintenance:manage',
   ];
 
   await knex('hostel.role_permissions').insert([

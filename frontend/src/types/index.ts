@@ -86,6 +86,13 @@ export interface FeatureFlags {
   enableParentAccess: boolean;
 }
 
+// Real gap, found live while adding this batch's own two fields below:
+// several backend policyDefaults fields added across earlier batches
+// (offerAcceptDeadlineHours, noShowWarningHoursBeforeDeadline, guardianOtp*,
+// movementEscalation*, abandonmentLegalWaitingPeriodDays) were never added
+// here, silent because Settings.tsx never happened to read any of them —
+// a pre-existing drift this batch doesn't fully close, named rather than
+// silently left for the next person to rediscover.
 export interface PolicyDefaults {
   attendanceWindowStart: string;
   attendanceCutoff: string;
@@ -94,6 +101,9 @@ export interface PolicyDefaults {
   visitorSlotCapacityPerSlot: number;
   gatePassMaxDurationHours: number;
   movementReturnReminderMinutes: number;
+  // D17.08 (TODO.md Batch 29).
+  maintenanceVerificationSlaHours: number;
+  roomReadinessMinCleanlinessScore: number;
 }
 
 export interface TenantSettings {
@@ -726,6 +736,10 @@ export interface Checkout {
   // D17.05 (TODO.md Batch 27) item 109 — the resident's real financial
   // picture, shown alongside the finance_cleared toggle.
   financeSummary?: FinanceBalances;
+  // D17.08 (TODO.md Batch 29) item 119 — the composite room-readiness
+  // gate, shown alongside the markRoomReadyForReuse toggle. Null when this
+  // checkout's bed can't be resolved to a room.
+  roomReadiness?: RoomReadiness | null;
 }
 
 export type ContactMethod = 'call' | 'email' | 'sms' | 'in_person';
@@ -1033,6 +1047,124 @@ export interface ShiftHandover {
   outstandingKeys: MasterKeyLog[];
   uncollectedPackages: PropertyCustody[];
   residentsOverdue: unknown[];
+}
+
+// --- Maintenance, housekeeping & cleanliness (D17.08, TODO.md Batch 29) ---
+
+export type MaintenanceCategory =
+  | 'electrical' | 'plumbing' | 'water_supply' | 'furniture' | 'room_appliance' | 'washroom' | 'housekeeping'
+  | 'pest_control' | 'internet_it' | 'security' | 'access_credential' | 'food_mess_service' | 'safety_emergency'
+  | 'common_area_issue' | 'other';
+export type MaintenancePriority = 'low' | 'normal' | 'high' | 'critical';
+export type MaintenanceTicketStatus =
+  | 'reported' | 'pending_verification' | 'returned_for_information' | 'rejected' | 'verified'
+  | 'emergency_routed' | 'assigned' | 'in_progress' | 'resolved' | 'closed' | 'reopened' | 'cancelled';
+
+export interface MaintenanceTicket {
+  id: string;
+  roomId: string | null;
+  locationNote: string | null;
+  raisedBy: string;
+  category: MaintenanceCategory;
+  description: string;
+  priority: MaintenancePriority;
+  isEmergency: boolean;
+  evidencePhotoUrl: string | null;
+  status: MaintenanceTicketStatus;
+  verificationRequired: boolean;
+  verifierUserId: string | null;
+  verifiedAt: string | null;
+  verificationDecision: 'approved' | 'returned' | 'rejected' | null;
+  verificationReason: string | null;
+  duplicateOfTicketId: string | null;
+  assignedToUserId: string | null;
+  assignedToProvider: string | null;
+  manualExternalReference: string | null;
+  dueDate: string | null;
+  resolutionNotes: string | null;
+  resolutionEvidenceUrl: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  residentConfirmedAt: string | null;
+  reopenReason: string | null;
+  cancelledReason: string | null;
+  isLocalFallback: boolean;
+  slaEscalatedAt: string | null;
+  createdAt: string;
+}
+
+export type HousekeepingTaskType = 'daily' | 'weekly' | 'monthly' | 'checkout_deep_clean';
+export type HousekeepingTaskStatus = 'scheduled' | 'in_progress' | 'completed' | 'missed' | 'rework_required' | 'cancelled';
+
+export interface HousekeepingChecklistItem {
+  completed: boolean;
+  completedBy?: string;
+  completedAt?: string;
+  notes?: string;
+}
+
+export interface HousekeepingTask {
+  id: string;
+  scopeType: 'room' | 'floor' | 'hostel';
+  scopeId: string;
+  taskType: HousekeepingTaskType;
+  scheduledDate: string;
+  assignedToUserId: string | null;
+  preferredTime: string | null;
+  roomEntryId: string | null;
+  checklist: Record<string, HousekeepingChecklistItem> | null;
+  status: HousekeepingTaskStatus;
+  completedAt: string | null;
+  completedBy: string | null;
+  missedReason: string | null;
+  reworkOfTaskId: string | null;
+  consumableRequestReference: string | null;
+  createdAt: string;
+}
+
+export type CleanlinessAreaType = 'room' | 'washroom';
+export type CleanlinessAppealStatus = 'none' | 'appealed' | 'upheld' | 'overturned';
+
+export interface CleanlinessInspection {
+  id: string;
+  areaType: CleanlinessAreaType;
+  scopeId: string;
+  housekeepingTaskId: string | null;
+  inspectorUserId: string;
+  inspectedAt: string;
+  cleanlinessScore: number;
+  wasteSegregationOk: boolean | null;
+  prohibitedAccumulationFlag: boolean;
+  safetyHazardFlag: boolean;
+  maintenanceDefectNoted: boolean;
+  maintenanceDefectNotes: string | null;
+  energyWaterNotes: string | null;
+  residentParticipationNotes: string | null;
+  photoUrl: string | null;
+  residentComments: string | null;
+  correctionDeadline: string | null;
+  reinspectionOfId: string | null;
+  appealStatus: CleanlinessAppealStatus;
+  appealReason: string | null;
+  appealDecidedBy: string | null;
+  appealDecidedAt: string | null;
+  appealDecisionReason: string | null;
+  createdAt: string;
+}
+
+export interface RoomReadinessGates {
+  physicalVacancy: boolean;
+  inventoryKeyClearance: boolean;
+  housekeepingComplete: boolean;
+  inspectionPassed: boolean;
+  safetyClear: boolean;
+  maintenanceClear: boolean;
+}
+
+export interface RoomReadiness {
+  ready: boolean;
+  gates: RoomReadinessGates;
+  notModelled: readonly string[];
 }
 
 export type LegalHoldStatus = 'none' | 'hold' | 'released';

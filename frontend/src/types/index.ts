@@ -1368,6 +1368,71 @@ export interface LaundryOrder {
   createdAt: string;
 }
 
+// --- Residence-life programmes & shared-facility booking (D17.24, TODO.md Batch 30) ---
+
+export type FacilityBookingStatus = 'requested' | 'approved' | 'rejected' | 'checked_in' | 'completed' | 'cancelled' | 'no_show' | 'closed';
+
+export interface FacilityBooking {
+  id: string;
+  commonAreaId: string;
+  requestedBy: string;
+  purpose: string;
+  startAt: string;
+  endAt: string;
+  attendeeCount: number | null;
+  status: FacilityBookingStatus;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  checkedInAt: string | null;
+  completedAt: string | null;
+  noShowAt: string | null;
+  cancelledReason: string | null;
+  damageIncidentReference: string | null;
+  createdAt: string;
+}
+
+export type ProgrammeType =
+  | 'new_resident_orientation' | 'floor_hostel_meeting' | 'safety_awareness' | 'cleanliness_waste_conservation'
+  | 'peer_mentoring' | 'study_support_session' | 'sports_recreation' | 'cultural_social'
+  | 'volunteer_community_service' | 'resident_committee_meeting' | 'other';
+export type ProgrammeStatus = 'requested' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface ProgrammeParticipant {
+  id: string;
+  programmeId: string;
+  studentId: string;
+  registeredAt: string;
+  attended: boolean | null;
+  participationNotes: string | null;
+}
+
+export interface ResidenceProgramme {
+  id: string;
+  programmeType: ProgrammeType;
+  targetScopeType: 'hostel' | 'floor';
+  targetScopeId: string;
+  organiserUserId: string;
+  scheduledAt: string;
+  location: string | null;
+  facilityBookingId: string | null;
+  capacity: number | null;
+  registrationRequired: boolean;
+  accessibilityNeeds: string | null;
+  consentRequired: boolean;
+  status: ProgrammeStatus;
+  incidentSafetyPlan: string | null;
+  feedbackSummary: string | null;
+  costBudgetReference: string | null;
+  outcomeNotes: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  createdBy: string;
+  createdAt: string;
+  participants?: ProgrammeParticipant[];
+}
+
 export type LegalHoldStatus = 'none' | 'hold' | 'released';
 
 export interface SecurityEvidenceReference {

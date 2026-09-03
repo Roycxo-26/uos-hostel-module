@@ -80,6 +80,7 @@ const WARDEN_PERMISSIONS: readonly string[] = [
   'gamification:manage',
   'mess_kitchen:view_events',
   'laundry:manage',
+  'residence_life:manage',
 ];
 
 export const ROLE_PERMISSIONS: ReadonlyArray<{ role: string; permission: string }> = [

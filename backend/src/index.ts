@@ -21,6 +21,7 @@ import { flagVisitorOverstaysAllTenants, expireVisitorPassesAllTenants } from '.
 import { flagMaintenanceSlaBreachesAllTenants } from './jobs/flagMaintenanceSlaBreaches';
 import { flagOffCampusConfirmationDueAllTenants } from './jobs/flagOffCampusConfirmationDue';
 import { flagLaundrySlaBreachesAllTenants } from './jobs/flagLaundrySlaBreaches';
+import { flagFacilityBookingNoShowsAllTenants } from './jobs/flagFacilityBookingNoShows';
 import { restoreTemporaryRelocationsAllTenants } from './jobs/restoreTemporaryRelocations';
 
 const MIGRATIONS_CONFIG = {
@@ -345,6 +346,14 @@ async function boot(): Promise<void> {
   }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
   void flagLaundrySlaBreachesAllTenants();
 
+  // D17.24 (TODO.md Batch 30, item 125) — §24H.5's facility-booking
+  // no-show state. Same stopgap-but-flagged reasoning as every sweep
+  // above.
+  const facilityNoShowSweepTimer = setInterval(() => {
+    void flagFacilityBookingNoShowsAllTenants();
+  }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
+  void flagFacilityBookingNoShowsAllTenants();
+
   const shutdown = (signal: string): void => {
     console.log(`[${process.env.MODULE_NAME}] ${signal} received, shutting down`);
     clearInterval(noShowSweepTimer);
@@ -362,6 +371,7 @@ async function boot(): Promise<void> {
     clearInterval(maintenanceSlaSweepTimer);
     clearInterval(offCampusConfirmationSweepTimer);
     clearInterval(laundrySlaSweepTimer);
+    clearInterval(facilityNoShowSweepTimer);
     server.close(() => {
       void Promise.all([sync ? sync.stop() : Promise.resolve(), registry.destroy()]).then(() => process.exit(0));
     });

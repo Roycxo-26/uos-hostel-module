@@ -128,6 +128,10 @@ const NAV_ITEMS: NavItem[] = [
     visible: (me) => isPlatformAdmin(me) || hasHostelRole(me, 'warden'),
     group: 'Safety & Services',
   },
+  // HOSTEL-GAP-ANALYSIS.md D17.24 (TODO.md Batch 30, item 125) — not
+  // staff-only, a resident requests a booking or proposes a programme
+  // (see ResidenceLife.tsx).
+  { path: '/residence-life', label: 'Residence Life', icon: HomeIcon, group: 'Safety & Services' },
   // HOSTEL-GAP-ANALYSIS.md D17.22 (TODO.md Batch 21) — staff-only, same
   // reasoning as the other new Batch 16-19 pages.
   {

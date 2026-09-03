@@ -14,6 +14,7 @@ import { Gamification } from './pages/Gamification';
 import { HostelStructure } from './pages/HostelStructure';
 import { Kitchen } from './pages/Kitchen';
 import { Laundry } from './pages/Laundry';
+import { ResidenceLife } from './pages/ResidenceLife';
 import { Login } from './pages/Login';
 import { Maintenance } from './pages/Maintenance';
 import { OffCampusHousing } from './pages/OffCampusHousing';
@@ -133,6 +134,10 @@ function AuthenticatedApp() {
               resident requests and tracks their own laundry order (see
               Laundry.tsx). */}
           <Route path="/laundry" element={<Laundry />} />
+          {/* D17.24 (TODO.md Batch 30, item 125) — not staff-only, a
+              resident requests a booking or proposes a programme (see
+              ResidenceLife.tsx). */}
+          <Route path="/residence-life" element={<ResidenceLife />} />
           {/* D17.06 (TODO.md Batch 28) — not staff-only, a host requests/
               tracks their own visitor; deciding/entry/exit/handover is
               staff-gated server-side (see Visitors.tsx). */}

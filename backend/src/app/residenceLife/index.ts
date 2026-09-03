@@ -1,0 +1,1 @@
+export { residenceLifeRouter } from './route';

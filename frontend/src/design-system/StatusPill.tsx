@@ -237,6 +237,12 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   damaged_item: { label: 'Damaged Item', tone: 'danger' },
   unclaimed_return: { label: 'Unclaimed', tone: 'warning' },
   'laundry:reopened': { label: 'Reopened', tone: 'warning' },
+
+  // Facility booking (D17.24, TODO.md Batch 30) — 'requested'/'approved'/
+  // 'rejected'/'checked_in'/'completed'/'cancelled'/'closed' all reuse
+  // entries above; residence-life programme status reuses 'requested'/
+  // 'approved'/'rejected'/'in_progress'/'completed'/'cancelled' too.
+  no_show: { label: 'No-Show', tone: 'danger' },
 };
 
 function humanize(status: string): string {

@@ -164,6 +164,13 @@ export async function seed(knex: Knex): Promise<void> {
     // acknowledging/disputing/cancelling stays self-service — see
     // laundry/route.ts's own comment.
     'laundry:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.24 (TODO.md Batch 30, item 125) —
+    // deciding facility bookings/programmes. Requesting/checking-in/
+    // cancelling/registering stays self-service, and an organiser holding
+    // an active Floor In-charge assignment gets elevated access to their
+    // own programme without this permission — see residenceLife/
+    // service.ts's own canOperateThisProgramme.
+    'residence_life:manage',
   ];
 
   await knex('hostel.role_permissions').insert([

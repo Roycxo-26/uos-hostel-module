@@ -207,6 +207,18 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   // 'pending'/'expired'/'suspended' all reuse entries above (same meanings).
   periodic_confirmation_due: { label: 'Confirmation Due', tone: 'warning' },
   exit_requested: { label: 'Exit Requested', tone: 'warning' },
+
+  // Gamification competition (D17.15, TODO.md Batch 30) — 'draft'/'open'/
+  // 'closed'/'cancelled' reuse entries above; entry appealStatus reuses
+  // 'appealed' from Cases. 'upheld'/'overturned' are new here — first
+  // used by Batch 29's cleanliness-inspection appeal too, which fell back
+  // to humanize() with no dedicated tone until now.
+  scoring_locked: { label: 'Scoring Locked', tone: 'warning' },
+  provisional_result: { label: 'Provisional Result', tone: 'info' },
+  appeal_window: { label: 'Appeal Window', tone: 'warning' },
+  final_result: { label: 'Final Result', tone: 'success' },
+  upheld: { label: 'Upheld', tone: 'neutral' },
+  overturned: { label: 'Overturned', tone: 'info' },
 };
 
 function humanize(status: string): string {

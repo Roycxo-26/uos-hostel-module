@@ -155,6 +155,9 @@ const NAV_ITEMS: NavItem[] = [
     group: 'Safety & Services',
   },
   { path: '/maintenance', label: 'Room Maintenance', icon: WrenchIcon, group: 'Safety & Services' },
+  // HOSTEL-GAP-ANALYSIS.md D17.15 (TODO.md Batch 30) — not staff-only, a
+  // resident sees their own room/floor's entry (see Gamification.tsx).
+  { path: '/gamification', label: 'Gamification', icon: ChartIcon, group: 'Safety & Services' },
   // HOSTEL-GAP-ANALYSIS.md D17.06 (TODO.md Batch 28) — not staff-only, a
   // host requests/tracks their own visitor (see Visitors.tsx).
   { path: '/visitors', label: 'Visitors', icon: UserIcon, group: 'Safety & Services' },

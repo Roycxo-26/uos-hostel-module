@@ -164,6 +164,8 @@ export interface Hostel {
   safetyStatusOwner: string | null;
   safetyDataAsOf: string | null;
   safetyProfile: SafetyProfile | null;
+  // D17.15 (TODO.md Batch 30) — §23.1's own per-hostel entitlement flag.
+  gamificationEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1219,6 +1221,79 @@ export interface OffCampusPlacement {
   exitConfirmedAt: string | null;
   exitNotes: string | null;
   cancelledReason: string | null;
+  createdAt: string;
+}
+
+// --- Cleanliness gamification (D17.15, TODO.md Batch 30) -------------------
+
+export type CompetitionType =
+  | 'best_room_of_the_week' | 'best_room_of_the_month' | 'best_floor_wing' | 'most_responsible_room'
+  | 'most_proactive_student_or_team' | 'cleanest_common_area_team' | 'best_waste_management'
+  | 'best_energy_water_conservation' | 'best_community_participation' | 'other';
+export type CompetitionStatus = 'draft' | 'open' | 'scoring_locked' | 'provisional_result' | 'appeal_window' | 'final_result' | 'closed' | 'cancelled';
+
+export interface ScoringDimensionConfig {
+  key: string;
+  label: string;
+  weight: number;
+  scoreMin: number;
+  scoreMax: number;
+  evidenceRequired: boolean;
+  minimumInspections: number;
+  treatMissingAsZero: boolean;
+}
+
+export interface GamificationCompetition {
+  id: string;
+  hostelId: string;
+  competitionType: CompetitionType;
+  name: string;
+  description: string | null;
+  status: CompetitionStatus;
+  scoringDimensions: ScoringDimensionConfig[];
+  eligibleScopeType: 'room' | 'floor';
+  startDate: string;
+  endDate: string;
+  appealWindowDays: number;
+  tieBreakerRule: string | null;
+  createdBy: string;
+  cancelledReason: string | null;
+  createdAt: string;
+  entries?: GamificationEntry[];
+}
+
+export type GamificationAppealStatus = 'none' | 'appealed' | 'upheld' | 'overturned';
+
+export interface GamificationEntry {
+  id: string;
+  competitionId: string;
+  scopeType: 'room' | 'floor';
+  scopeId: string;
+  alias: string | null;
+  totalScore: string | null;
+  rank: number | null;
+  isWinner: boolean;
+  recognitionStatus: 'none' | 'issued';
+  rewardDescription: string | null;
+  optedOut: boolean;
+  appealStatus: GamificationAppealStatus;
+  appealReason: string | null;
+  appealDecidedBy: string | null;
+  appealDecidedAt: string | null;
+  appealDecisionReason: string | null;
+  createdAt: string;
+}
+
+export interface GamificationScore {
+  id: string;
+  entryId: string;
+  dimensionKey: string;
+  score: string;
+  scoredBy: string;
+  scoredAt: string;
+  evidenceReference: string | null;
+  supersedesScoreId: string | null;
+  editReason: string | null;
   createdAt: string;
 }
 

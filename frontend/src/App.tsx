@@ -10,6 +10,7 @@ import { Checkout } from './pages/Checkout';
 import { Closures } from './pages/Closures';
 import { Dashboard } from './pages/Dashboard';
 import { Finance } from './pages/Finance';
+import { Gamification } from './pages/Gamification';
 import { HostelStructure } from './pages/HostelStructure';
 import { Kitchen } from './pages/Kitchen';
 import { Login } from './pages/Login';
@@ -122,6 +123,11 @@ function AuthenticatedApp() {
               placements is staff-gated server-side (see
               OffCampusHousing.tsx). */}
           <Route path="/off-campus" element={<OffCampusHousing />} />
+          {/* D17.15 (TODO.md Batch 30) — not staff-only, a resident sees
+              their own room/floor's entry and can opt out or appeal;
+              running competitions and per-hostel enable/disable is
+              staff-gated server-side (see Gamification.tsx). */}
+          <Route path="/gamification" element={<Gamification />} />
           {/* D17.06 (TODO.md Batch 28) — not staff-only, a host requests/
               tracks their own visitor; deciding/entry/exit/handover is
               staff-gated server-side (see Visitors.tsx). */}

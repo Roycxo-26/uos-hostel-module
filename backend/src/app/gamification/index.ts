@@ -1,0 +1,1 @@
+export { gamificationRouter } from './route';

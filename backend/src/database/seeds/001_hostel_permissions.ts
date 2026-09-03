@@ -149,6 +149,11 @@ export async function seed(knex: Knex): Promise<void> {
     // confirming occupancy, requesting exit and cancelling stay
     // self-service — see offCampus/route.ts's own comment.
     'off_campus:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.15 (TODO.md Batch 30, item 122) — running
+    // a competition day to day (create/open/score/finalize). Enabling
+    // gamification for a hostel is stronger — see gamification:configure
+    // below, Head Warden only, same reasoning as structure:configure.
+    'gamification:manage',
   ];
 
   await knex('hostel.role_permissions').insert([
@@ -163,5 +168,9 @@ export async function seed(knex: Knex): Promise<void> {
     // responsibility_assignments row instead (assigned via
     // POST /responsibilities/finance), not this permission.
     { role: 'head_warden', permission: 'finance_event:confirm' },
+    // §23.1: "Head Warden/Hostel Administrator decides whether it is
+    // enabled for each Hostel." Same Head-Warden-only reasoning as the
+    // two above.
+    { role: 'head_warden', permission: 'gamification:configure' },
   ]);
 }

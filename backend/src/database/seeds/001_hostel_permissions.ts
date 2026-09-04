@@ -178,6 +178,15 @@ export async function seed(knex: Knex): Promise<void> {
     // gated by this permission at all — see roommate/route.ts's own
     // comment.
     'roommate:manage',
+    // HOSTEL-GAP-ANALYSIS.md D17.14 (TODO.md Batch 30, item 121) —
+    // campaign lifecycle (create/open/close/cancel/analysis-ready/
+    // archive), viewing responses/analytics, and service-recovery case
+    // handling. Submitting a response stays resident self-service — see
+    // feedback/route.ts's own comment. Revealing a confidential
+    // response's identity is a stronger, separate action — see
+    // feedback:reveal_identity below, Head Warden only, same reasoning
+    // as finance_event:confirm/gamification:configure.
+    'feedback:manage',
   ];
 
   await knex('hostel.role_permissions').insert([
@@ -196,5 +205,8 @@ export async function seed(knex: Knex): Promise<void> {
     // enabled for each Hostel." Same Head-Warden-only reasoning as the
     // two above.
     { role: 'head_warden', permission: 'gamification:configure' },
+    // §22.4: "confidential... limited reveal permission and audit."
+    // Same Head-Warden-only reasoning as the two above.
+    { role: 'head_warden', permission: 'feedback:reveal_identity' },
   ]);
 }

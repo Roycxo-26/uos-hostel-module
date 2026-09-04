@@ -248,6 +248,15 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   // 'expired' all reuse entries above.
   declined: { label: 'Declined', tone: 'neutral' },
   revoked: { label: 'Revoked', tone: 'neutral' },
+
+  // Feedback campaign (D17.14, TODO.md Batch 30, item 121) — 'draft'/
+  // 'open'/'closed'/'cancelled' reuse entries above. Service-recovery
+  // case status reuses 'open'/'closed' too; 'in_review' is new here
+  // (distinct from Application's 'under_review' — a different entity).
+  analysis_ready: { label: 'Analysis Ready', tone: 'info' },
+  archived: { label: 'Archived', tone: 'neutral' },
+  in_review: { label: 'In Review', tone: 'warning' },
+  case_created: { label: 'Case Created', tone: 'success' },
 };
 
 function humanize(status: string): string {

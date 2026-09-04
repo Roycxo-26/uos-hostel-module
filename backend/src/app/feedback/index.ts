@@ -1,0 +1,1 @@
+export { feedbackRouter } from './route';

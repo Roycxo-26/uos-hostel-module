@@ -37,6 +37,7 @@ import { messKitchenRouter } from './app/messKitchen';
 import { laundryRouter } from './app/laundry';
 import { residenceLifeRouter } from './app/residenceLife';
 import { roommateRouter } from './app/roommate';
+import { feedbackRouter } from './app/feedback';
 import { auditRouter } from './app/audit';
 import { adminRouter } from './app/admin';
 import { meRouter } from './app/me';
@@ -100,6 +101,7 @@ export function createApp() {
   app.use('/laundry', laundryRouter());
   app.use('/residence-life', residenceLifeRouter());
   app.use('/roommate', roommateRouter());
+  app.use('/feedback', feedbackRouter());
   app.use('/audit', auditRouter());
 
   // Required by @uos/auth's spec ("Required admin API endpoints" — the

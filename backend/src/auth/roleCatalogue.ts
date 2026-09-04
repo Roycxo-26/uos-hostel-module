@@ -82,6 +82,7 @@ const WARDEN_PERMISSIONS: readonly string[] = [
   'laundry:manage',
   'residence_life:manage',
   'roommate:manage',
+  'feedback:manage',
 ];
 
 export const ROLE_PERMISSIONS: ReadonlyArray<{ role: string; permission: string }> = [
@@ -90,6 +91,7 @@ export const ROLE_PERMISSIONS: ReadonlyArray<{ role: string; permission: string 
   { role: 'head_warden', permission: 'structure:configure' },
   { role: 'head_warden', permission: 'finance_event:confirm' },
   { role: 'head_warden', permission: 'gamification:configure' },
+  { role: 'head_warden', permission: 'feedback:reveal_identity' },
 ];
 
 /**

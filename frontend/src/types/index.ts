@@ -112,6 +112,8 @@ export interface PolicyDefaults {
   laundryDefaultSlaHours: number;
   // D17.26 (TODO.md Batch 30, item 126).
   roommateRequestExpiryDays: number;
+  // D17.14 (TODO.md Batch 30, item 121).
+  feedbackMinimumResponseThreshold: number;
 }
 
 export interface TenantSettings {

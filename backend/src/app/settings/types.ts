@@ -82,6 +82,13 @@ export interface PolicyDefaults {
   // D17.26 (TODO.md Batch 30, item 126) — §24J.3's consent request
   // expiry window.
   roommateRequestExpiryDays: number;
+  // D17.14 (TODO.md Batch 30, item 121) — §22.4's "minimum response
+  // threshold before reporting." A real decision, not an arbitrary
+  // default: the user chose 5, weighing "small enough to still give
+  // useful floor-level feedback" against "large enough that no single
+  // response stands out." Pre-fills every new campaign; a campaign may
+  // still set its own, per §22.3.
+  feedbackMinimumResponseThreshold: number;
 }
 
 export interface TenantSettings {
@@ -143,6 +150,7 @@ export const DEFAULT_POLICY: PolicyDefaults = {
   offCampusOccupancyConfirmationIntervalDays: 30,
   laundryDefaultSlaHours: 48,
   roommateRequestExpiryDays: 7,
+  feedbackMinimumResponseThreshold: 5,
 };
 
 type StoredRow = {

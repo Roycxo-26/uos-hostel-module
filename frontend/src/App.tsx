@@ -9,6 +9,7 @@ import { Cases } from './pages/Cases';
 import { Checkout } from './pages/Checkout';
 import { Closures } from './pages/Closures';
 import { Dashboard } from './pages/Dashboard';
+import { Feedback } from './pages/Feedback';
 import { Finance } from './pages/Finance';
 import { Gamification } from './pages/Gamification';
 import { HostelStructure } from './pages/HostelStructure';
@@ -147,6 +148,11 @@ function AuthenticatedApp() {
               tracks their own visitor; deciding/entry/exit/handover is
               staff-gated server-side (see Visitors.tsx). */}
           <Route path="/visitors" element={<Visitors />} />
+          {/* D17.14 (TODO.md Batch 30, item 121) — not staff-only, a
+              resident sees and responds to campaigns open for their own
+              scope; running campaigns/analytics/service-recovery cases is
+              staff-gated server-side (see Feedback.tsx). */}
+          <Route path="/feedback" element={<Feedback />} />
           <Route path="/mess" element={<Mess />} />
           <Route
             path="/kitchen"

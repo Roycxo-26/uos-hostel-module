@@ -23,6 +23,7 @@ import { flagOffCampusConfirmationDueAllTenants } from './jobs/flagOffCampusConf
 import { flagLaundrySlaBreachesAllTenants } from './jobs/flagLaundrySlaBreaches';
 import { flagFacilityBookingNoShowsAllTenants } from './jobs/flagFacilityBookingNoShows';
 import { flagRoommateRequestsExpiredAllTenants } from './jobs/flagRoommateRequestsExpired';
+import { flagFeedbackCampaignsAllTenants } from './jobs/flagFeedbackCampaigns';
 import { restoreTemporaryRelocationsAllTenants } from './jobs/restoreTemporaryRelocations';
 
 const MIGRATIONS_CONFIG = {
@@ -362,6 +363,14 @@ async function boot(): Promise<void> {
   }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
   void flagRoommateRequestsExpiredAllTenants();
 
+  // D17.14 (TODO.md Batch 30, item 121) — §22.5's auto-close on close_at
+  // and the folded-in reminder. Same stopgap-but-flagged reasoning as
+  // every sweep above.
+  const feedbackCampaignSweepTimer = setInterval(() => {
+    void flagFeedbackCampaignsAllTenants();
+  }, OFFER_EXPIRY_SWEEP_INTERVAL_MS);
+  void flagFeedbackCampaignsAllTenants();
+
   const shutdown = (signal: string): void => {
     console.log(`[${process.env.MODULE_NAME}] ${signal} received, shutting down`);
     clearInterval(noShowSweepTimer);
@@ -381,6 +390,7 @@ async function boot(): Promise<void> {
     clearInterval(laundrySlaSweepTimer);
     clearInterval(facilityNoShowSweepTimer);
     clearInterval(roommateExpirySweepTimer);
+    clearInterval(feedbackCampaignSweepTimer);
     server.close(() => {
       void Promise.all([sync ? sync.stop() : Promise.resolve(), registry.destroy()]).then(() => process.exit(0));
     });

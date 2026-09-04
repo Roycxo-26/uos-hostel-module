@@ -171,6 +171,11 @@ const NAV_ITEMS: NavItem[] = [
   // HOSTEL-GAP-ANALYSIS.md D17.06 (TODO.md Batch 28) — not staff-only, a
   // host requests/tracks their own visitor (see Visitors.tsx).
   { path: '/visitors', label: 'Visitors', icon: UserIcon, group: 'Safety & Services' },
+  // HOSTEL-GAP-ANALYSIS.md D17.14 (TODO.md Batch 30, item 121) — not
+  // staff-only, a resident sees and responds to campaigns open for their
+  // own scope; running campaigns and analytics is staff-gated server-side
+  // (see Feedback.tsx).
+  { path: '/feedback', label: 'Feedback & Surveys', icon: AlertIcon, group: 'Safety & Services' },
 
   {
     path: '/reports',

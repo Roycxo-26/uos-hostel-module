@@ -44,13 +44,16 @@ export async function markNotified(id: string) {
   return entry;
 }
 
-export async function recordEntry(id: string, evidenceNotes?: string) {
-  const { entry } = await api.post<{ entry: RoomEntry }>(`/room-access/entries/${id}/enter`, { evidenceNotes });
+// entryPhotoUrl/exitPhotoUrl added for frontline/offline support
+// (12 Sep 2026) — a compressed camera photo of room condition on
+// entry/exit (see offline/compressImage.ts).
+export async function recordEntry(id: string, evidenceNotes?: string, entryPhotoUrl?: string) {
+  const { entry } = await api.post<{ entry: RoomEntry }>(`/room-access/entries/${id}/enter`, { evidenceNotes, entryPhotoUrl });
   return entry;
 }
 
-export async function recordExit(id: string, evidenceNotes?: string) {
-  const { entry } = await api.post<{ entry: RoomEntry }>(`/room-access/entries/${id}/exit`, { evidenceNotes });
+export async function recordExit(id: string, evidenceNotes?: string, exitPhotoUrl?: string) {
+  const { entry } = await api.post<{ entry: RoomEntry }>(`/room-access/entries/${id}/exit`, { evidenceNotes, exitPhotoUrl });
   return entry;
 }
 

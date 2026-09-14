@@ -1,14 +1,19 @@
 import type { ReactNode } from 'react';
-import { CloseIcon } from './icons';
+import { Sheet as ShadcnSheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 
 /**
- * The one create/edit-form container used everywhere. Mobile-first per the
- * user's brief: full-screen on small viewports (a form that has to be
- * usable one-handed on a phone doesn't get a cramped modal), a right-anchored
- * panel from the `sm` breakpoint up. This is deliberately not a centred
- * modal — a centred dialog is the thing that reads as a bootstrapped admin
- * template; an edge panel with a proper header/footer reads as a considered
- * one.
+ * The one create/edit-form container used everywhere — built on the real,
+ * CLI-generated `components/ui/sheet` (Radix Dialog underneath: real focus
+ * trapping, Escape-to-close, scroll locking, and its own CSS slide/fade
+ * animation come for free). This adapter keeps the same four props every
+ * page already calls it with.
+ *
+ * Mobile-first per the original brief, preserved on top of shadcn's own
+ * default (which is a 75%-width panel on every viewport): full-screen
+ * below `sm` — a form usable one-handed on a phone doesn't get a cramped
+ * partial-width panel — a right-anchored panel with a fixed max width from
+ * `sm` up.
  */
 export function Sheet({
   open,
@@ -23,36 +28,35 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-40">
-      <button
-        type="button"
-        aria-label="Close panel"
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-900/40"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="pt-safe pb-safe absolute inset-0 flex flex-col bg-white shadow-panel sm:inset-y-0 sm:right-0 sm:left-auto sm:w-full sm:max-w-md"
-      >
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">{children}</div>
-        {footer && <div className="border-t border-slate-200 px-4 py-3 sm:px-5">{footer}</div>}
-      </div>
-    </div>
+    <ShadcnSheet open={open} onOpenChange={(next) => !next && onClose()}>
+      {/* Real bug found live via SELF-TEST-GUIDE.md Batch 24, in two
+          layers — the min-w-0 fix below wasn't enough on its own:
+          1. The upstream shadcn SheetContent's own default width class is
+             `data-[side=right]:sm:max-w-sm` (a two-variant chain). Our
+             override here was plain `sm:max-w-md` (one variant) — a
+             DIFFERENT variant chain, so tailwind-merge's class-conflict
+             resolution never recognised them as the same "slot" and kept
+             BOTH in the compiled output; which one actually won in the
+             browser came down to unrelated CSS source order, not intent.
+             Matching the exact same variant chain (`data-[side=right]:`
+             included) makes this override behave like an override.
+          2. Even with the right max-width applying, nothing told this
+             fixed-position panel to actually clip content that tries to
+             be wider than it — a long, non-wrapping Select value or an
+             unconstrained textarea doesn't grow the panel's own box, it
+             just paints past its right edge, which is enough on its own
+             to push the whole document into a horizontal scroll. Explicit
+             overflow-x-hidden here is the real fix; min-w-0 below stays
+             too, since it's the separate, correct fix for the flexbox
+             "child won't shrink" failure mode. */}
+      <SheetContent side="right" className={cn('pt-safe pb-safe overflow-x-hidden', 'data-[side=right]:w-full data-[side=right]:sm:max-w-md')}>
+        <SheetHeader className="border-b border-border px-4 py-3 sm:px-5">
+          <SheetTitle>{title}</SheetTitle>
+        </SheetHeader>
+        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-5">{children}</div>
+        {footer && <SheetFooter className="border-t border-border px-4 py-3 sm:px-5">{footer}</SheetFooter>}
+      </SheetContent>
+    </ShadcnSheet>
   );
 }

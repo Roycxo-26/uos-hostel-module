@@ -1,14 +1,252 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+/* Defines the `data-open`/`data-closed`/`data-checked`/`data-active`/etc.
+   custom variants every CLI-generated component's open/close/checked
+   animation depends on — WITHOUT this, `data-open:animate-in` etc. would
+   resolve to a literal `[data-open]` attribute match instead of mapping
+   onto Radix's actual `data-state="open"`, silently breaking every sheet/
+   dialog/select/switch/tabs animation while still compiling cleanly (no
+   build error, no console warning — this was found only by grepping the
+   built CSS for a real Radix `[data-state]` selector and finding none). */
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/manrope";
+
+/* ============================================================================
+   DESIGN TOKENS (Tailwind v4) — the entire visual identity of this app lives
+   in this one file. Every color, radius, shadow and font the whole codebase
+   uses (the shadcn-CLI-generated primitives in components/ui/, the
+   design-system/ adapters built on top of them, AND every page's own
+   hand-written Tailwind classes) resolves through a CSS variable defined
+   here — nothing is hardcoded in a .tsx file. Change a value below and the
+   *entire app* repaints, in both light and dark mode, without touching a
+   single component or page.
+
+   Shape, three parts:
+   1. `:root` / `.dark` hold the actual, swappable VALUES — one full neutral
+      scale (slate/rose/amber/emerald/sky/indigo/violet) plus a small set of
+      semantic tokens (background, card, border, ...). Runtime-swappable
+      on purpose: ThemeContext.tsx toggles the `.dark` class, and
+      lib/applyBranding.ts overwrites --color-accent/-fg/-subtle per tenant
+      via plain DOM style, which beats any CSS rule here automatically.
+   2. `@theme inline { --color-x: var(--x); }` is Tailwind v4's own documented
+      pattern for exposing a runtime-swappable CSS variable as a real utility
+      class (`bg-x`, `text-x`, ...) without baking in a build-time value —
+      this is the ONLY block that decides which variables above actually
+      become usable Tailwind classes.
+   3. Everything after that is base-layer behaviour (fonts, focus rings,
+      scrollbars, cursors) and the small set of "premium" ambient effects
+      (grain, glow) — restrained on purpose, see their own comments below.
+   ========================================================================= */
 
 :root {
-  /* Overridden at runtime from tenant_settings.branding.primaryColor —
-     see context/TenantSettingsContext.tsx. This default is only what
-     renders before that first fetch resolves. */
-  --color-accent: #3730a3;
+  /* --- Brand accent — overridden at runtime per tenant from
+     tenant_settings.branding.primaryColor (see lib/applyBranding.ts /
+     TenantSettingsContext.tsx). This default is only what renders before
+     that first fetch resolves. The one white-label mechanism the whole
+     app repaints from — untouched by everything else in this file. */
+  --color-accent: #4338ca;
   --color-accent-fg: #ffffff;
   --color-accent-subtle: #eef2ff;
+  /* A soft, hue-matched glow for hover/focus depth on the accent's own
+     surfaces (buttons, the active nav indicator) — color-mix reads
+     --color-accent live, so it stays correct even after applyBranding.ts
+     overwrites it for a tenant; nothing here needs updating in sync. */
+  --color-accent-glow: color-mix(in oklab, var(--color-accent) 45%, transparent);
+
+  /* --- Neutral scale (light) — identical to Tailwind's own default slate
+     palette, so nothing changes visually in light mode; only the dark
+     override block below actually repaints anything. */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  /* --- Semantic tint/text scales — same idea, same default = Tailwind's
+     real values, only the steps this app actually uses. */
+  --rose-50: #fff1f2; --rose-200: #fecdd3; --rose-400: #fb7185; --rose-600: #e11d48; --rose-700: #be123c; --rose-800: #9f1239;
+  --amber-50: #fffbeb; --amber-200: #fde68a; --amber-600: #d97706; --amber-700: #b45309; --amber-800: #92400e;
+  --emerald-50: #ecfdf5; --emerald-200: #a7f3d0; --emerald-600: #059669; --emerald-700: #047857;
+  --sky-50: #f0f9ff; --sky-200: #bae6fd; --sky-700: #0369a1; --sky-800: #075985; --sky-900: #0c4a6e;
+  --indigo-50: #eef2ff; --indigo-600: #4f46e5; --indigo-700: #4338ca;
+  --violet-50: #f5f3ff; --violet-700: #6d28d9;
+
+  /* --- Semantic surface tokens. Page canvas sits a hair off pure white so
+     card surfaces (pure white) read as slightly raised without needing a
+     heavy shadow everywhere. */
+  --background: #fafbfc;
+  --foreground: var(--slate-900);
+  --card: #ffffff;
+  --card-foreground: var(--slate-900);
+  --popover: #ffffff;
+  --popover-foreground: var(--slate-900);
+  --border: var(--slate-200);
+  --input: var(--slate-300);
+  /* Neutral hover/highlight surface — every CLI-generated shadcn primitive
+     (dropdown/select/tabs item hover) uses this, same as every hand-built
+     design-system component already did; keeps one consistent "you're
+     hovering this" language app-wide instead of a second, accent-tinted
+     one competing with it. */
+  --muted: var(--slate-100);
+  --muted-foreground: var(--slate-500);
+
+  /* Solid, filled-background colors (buttons, strong badges) — these stay
+     constant across themes on purpose: a saturated fill with a white
+     label reads fine on both a light and a dark surrounding surface, so
+     there's nothing to invert. */
+  /* shadcn's own generated primitives (components/ui/*) expect these two
+     names — rather than inventing a second "brand color" concept
+     alongside --color-accent, primary/primary-foreground are a direct
+     alias, single source of truth. secondary reuses --muted/--foreground
+     (a filled neutral surface) — shadcn's own convention for a
+     lower-emphasis button, one step up from ghost. */
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-accent-fg);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --ring: var(--color-accent);
+
+  --destructive: #e11d48;
+  --destructive-foreground: #ffffff;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --info: #0284c7;
+  --info-foreground: #ffffff;
+
+  /* One radius controls the whole app — every rounded-* utility derives
+     from this via the @theme block below. */
+  --radius: 0.75rem;
+
+  --shadow-panel: 0 12px 32px -8px rgb(15 23 42 / 0.14), 0 2px 8px -2px rgb(15 23 42 / 0.08);
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 1px rgb(15 23 42 / 0.03);
+  --shadow-soft-hover: 0 8px 20px -6px rgb(15 23 42 / 0.12), 0 2px 6px -2px rgb(15 23 42 / 0.06);
+  /* Hue-matched hover glow (restrained: only used on primary buttons and
+     the interactive Card hover state, not sprinkled everywhere). */
+  --shadow-glow: 0 8px 20px -4px var(--color-accent-glow);
+  /* Interactive Card's own hover shadow — same idea as --shadow-glow but
+     gentler (a card is a much bigger surface than a button) and layered
+     over the ordinary elevation shadow rather than replacing it. */
+  --shadow-card-glow: 0 14px 28px -10px var(--color-accent-glow), var(--shadow-soft-hover);
+
+  --font-sans: 'InterVariable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Manrope Variable', var(--font-sans);
+}
+
+/* Dark palette — same variable names, new values, applied whenever the OS
+   is set to dark AND the user hasn't made an explicit choice (see
+   ThemeContext.tsx), OR the user explicitly picked dark via the toggle in
+   the app header. Every number keeps the SAME relative weight it has in
+   light mode (900 = strongest/highest-contrast, 50/100 = faintest tint) —
+   only the polarity flips — which is what lets every existing `slate-*`/
+   `rose-*`/etc. utility class across every page repaint correctly here
+   with zero per-page changes. */
+.dark {
+  --slate-50: #0f172a; --slate-100: #131c2c; --slate-200: #1e293b; --slate-300: #334155; --slate-400: #64748b;
+  --slate-500: #94a3b8; --slate-600: #cbd5e1; --slate-700: #dde3ea; --slate-800: #eef1f5; --slate-900: #f8fafc; --slate-950: #ffffff;
+
+  --rose-50: #3f0d18; --rose-200: #9f1239; --rose-400: #fb7185; --rose-600: #fb7185; --rose-700: #fda4af; --rose-800: #fecdd3;
+  --amber-50: #3a1e02; --amber-200: #92400e; --amber-600: #fbbf24; --amber-700: #fcd34d; --amber-800: #fde68a;
+  --emerald-50: #032e22; --emerald-200: #065f46; --emerald-600: #34d399; --emerald-700: #6ee7b7;
+  --sky-50: #062338; --sky-200: #075985; --sky-700: #7dd3fc; --sky-800: #bae6fd; --sky-900: #e0f2fe;
+  --indigo-50: #1b1a42; --indigo-600: #818cf8; --indigo-700: #a5b4fc;
+  --violet-50: #240f4d; --violet-700: #c4b5fd;
+
+  --background: #08090d;
+  --foreground: var(--slate-900);
+  --card: #101319;
+  --card-foreground: var(--slate-900);
+  --popover: #11141b;
+  --popover-foreground: var(--slate-900);
+  --border: #21262f;
+  --input: #282e39;
+  --muted: #15181f;
+  --muted-foreground: var(--slate-500);
+
+  --color-accent-subtle: color-mix(in oklab, var(--color-accent) 24%, transparent);
+  --color-accent-glow: color-mix(in oklab, var(--color-accent) 55%, transparent);
+
+  --shadow-panel: 0 20px 50px -12px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.03);
+  --shadow-soft-hover: 0 12px 28px -8px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --shadow-glow: 0 10px 28px -6px var(--color-accent-glow);
+  --shadow-card-glow: 0 16px 32px -10px var(--color-accent-glow), var(--shadow-soft-hover);
+}
+
+/* Tailwind v4's own documented pattern for a runtime-swappable theme: this
+   block only ALIASES the variables above under Tailwind's `--color-*`/
+   `--radius-*`/`--font-*`/`--shadow-*` namespaces so `bg-slate-500`,
+   `rounded-lg`, `font-display`, `shadow-panel` etc. exist as real utility
+   classes — `inline` means Tailwind emits `var(--x)` references in the
+   generated CSS instead of baking in today's resolved value, which is
+   what makes the SAME utility class repaint for `.dark` and for a
+   tenant's runtime-set accent color without rebuilding anything. */
+@theme inline {
+  --color-accent: var(--color-accent);
+  --color-accent-fg: var(--color-accent-fg);
+  --color-accent-subtle: var(--color-accent-subtle);
+
+  --color-slate-50: var(--slate-50); --color-slate-100: var(--slate-100); --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300); --color-slate-400: var(--slate-400); --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600); --color-slate-700: var(--slate-700); --color-slate-800: var(--slate-800);
+  --color-slate-900: var(--slate-900); --color-slate-950: var(--slate-950);
+
+  --color-rose-50: var(--rose-50); --color-rose-200: var(--rose-200); --color-rose-400: var(--rose-400);
+  --color-rose-600: var(--rose-600); --color-rose-700: var(--rose-700); --color-rose-800: var(--rose-800);
+  --color-amber-50: var(--amber-50); --color-amber-200: var(--amber-200); --color-amber-600: var(--amber-600);
+  --color-amber-700: var(--amber-700); --color-amber-800: var(--amber-800);
+  --color-emerald-50: var(--emerald-50); --color-emerald-200: var(--emerald-200); --color-emerald-600: var(--emerald-600);
+  --color-emerald-700: var(--emerald-700);
+  --color-sky-50: var(--sky-50); --color-sky-200: var(--sky-200); --color-sky-700: var(--sky-700);
+  --color-sky-800: var(--sky-800); --color-sky-900: var(--sky-900);
+  --color-indigo-50: var(--indigo-50); --color-indigo-600: var(--indigo-600); --color-indigo-700: var(--indigo-700);
+  --color-violet-50: var(--violet-50); --color-violet-700: var(--violet-700);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+
+  --shadow-panel: var(--shadow-panel);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-soft-hover: var(--shadow-soft-hover);
+  --shadow-glow: var(--shadow-glow);
+  --shadow-card-glow: var(--shadow-card-glow);
 }
 
 @layer base {
@@ -16,16 +254,69 @@
     -webkit-tap-highlight-color: transparent;
     /* InterVariable ships an optical-size axis — this lets small UI text and
        large headings each pull the cut actually drawn for their size instead
-       of one static weight scaled up/down, which is where a lot of "this
-       looks slightly off" font complaints on data-dense apps come from. */
+       of one static weight scaled up/down. */
     font-optical-sizing: auto;
+    color-scheme: light;
   }
-  /* Visible, consistent focus ring everywhere — flow.md §14 NFR
-     Accessibility, and non-negotiable for a university-wide tool used by
-     screen-reader and keyboard-only staff, not just an aesthetic choice. */
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  /* Visible, consistent focus ring everywhere — non-negotiable for a
+     university-wide tool used by screen-reader and keyboard-only staff.
+     A real `outline` (survives forced-colors/high-contrast mode) plus a
+     soft colored glow layered on top for the "premium" pass — glow alone
+     would fail forced-colors, outline alone is what shipped before. */
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
+    box-shadow: 0 0 0 5px var(--color-accent-subtle);
+  }
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-accent-fg);
+  }
+  /* A thin, theme-aware scrollbar reads as considered rather than left to
+     whatever the OS default happens to be. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--slate-300) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--slate-300);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--slate-400);
+  }
+  /* Every clickable thing in the app should look clickable. Browsers do
+     NOT give <button> a pointer cursor by default (a very common, very
+     easy-to-miss gap) — this one rule fixes it everywhere at once, plus
+     the custom listbox/menu/tab primitives that render as div[role=...]
+     rather than a real <button>. Native <select>/<a> already get this
+     from the browser. */
+  button:not(:disabled),
+  [role='button']:not([data-disabled]):not([aria-disabled='true']),
+  [role='option']:not([data-disabled]),
+  [role='menuitem']:not([data-disabled]),
+  [role='tab']:not([data-disabled]) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'],
+  [data-disabled] {
+    cursor: not-allowed;
   }
 }
 
@@ -36,4 +327,45 @@
   .pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
   }
+}
+
+/* ============================================================================
+   AMBIENT BACKGROUND — the one deliberate "premium" flourish applied
+   app-wide rather than per-page: a barely-there grain texture (the exact
+   detail that separates a flat, matte "generated UI" background from a
+   considered one — Linear/Raycast/Vercel all use some version of this) plus
+   two very low-opacity, heavily blurred colour blobs pinned to the
+   viewport. Both are pointer-events-none, fixed, and sit behind everything
+   (AppShell renders its content above this) — restrained on purpose, not
+   an animated hero background. */
+.ambient-surface {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ambient-surface::before {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.025;
+  mix-blend-mode: overlay;
+}
+.dark .ambient-surface::before {
+  opacity: 0.05;
+}
+.ambient-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(38rem 26rem at 8% -6%, color-mix(in oklab, var(--color-accent) 10%, transparent), transparent 65%),
+    radial-gradient(32rem 24rem at 96% 8%, color-mix(in oklab, var(--color-accent) 7%, transparent), transparent 65%);
+}
+.dark .ambient-surface::after {
+  background-image:
+    radial-gradient(38rem 26rem at 8% -6%, color-mix(in oklab, var(--color-accent) 20%, transparent), transparent 65%),
+    radial-gradient(32rem 24rem at 96% 8%, color-mix(in oklab, var(--color-accent) 14%, transparent), transparent 65%);
 }

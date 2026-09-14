@@ -311,7 +311,7 @@ function HostelTreeView({
   onAssignResponsibility: (scopeType: 'room' | 'floor', scopeId: string, label: string) => void;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white">
+    <div className="rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div>
           <p className="text-sm font-semibold text-slate-900">
@@ -384,8 +384,14 @@ function HostelTreeView({
                 {block.floors.map((floor) => (
                   <details key={floor.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
                     <summary className="flex cursor-pointer list-none items-center justify-between text-sm text-slate-700">
-                      <span>
+                      {/* Real gap found live via SELF-TEST-GUIDE.md Batch
+                          22 — floor.status exists (a closure case flips it
+                          Suspended/Active, same as Room), but nothing here
+                          ever displayed it, unlike Room/Bed just below,
+                          which both show their own status pill. */}
+                      <span className="flex items-center gap-2">
                         {t?.floorLabel ?? 'Floor'} {floor.number} {floor.name ? `— ${floor.name}` : ''}
+                        <StatusPill status={floor.status} />
                       </span>
                       <span className="flex items-center gap-1">
                         {canAssignResponsibility && (
@@ -435,7 +441,7 @@ function HostelTreeView({
                         <p className="text-xs text-slate-400">No {(t?.roomLabel ?? 'rooms').toLowerCase()}s yet.</p>
                       )}
                       {floor.rooms.map((room) => (
-                        <div key={room.id} className="rounded-lg border border-slate-200 bg-white p-2.5">
+                        <div key={room.id} className="rounded-lg border border-border bg-card p-2.5">
                           <div className="mb-1.5 flex items-center justify-between gap-1">
                             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                               {t?.roomLabel ?? 'Room'} {room.code}

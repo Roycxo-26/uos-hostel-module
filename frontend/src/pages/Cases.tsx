@@ -90,7 +90,27 @@ export function Cases() {
 
   async function load() {
     setLoading(true);
-    setCases(await casesApi.listCases({ ...(statusFilter ? { status: statusFilter } : {}), ...(sectionType ? { caseType: sectionType } : {}) }));
+    // Real gap found live via SELF-TEST-GUIDE.md Batch 24: the "Report"
+    // form on either page lets you pick a welfare/safeguarding type
+    // regardless of which page you're on, but this page's own list used
+    // to filter strictly by sectionType — so a welfare/safeguarding case
+    // (a type that's neither "complaint" nor "incident") had no page it
+    // could ever show up on, for the reporter or for safeguarding-team
+    // staff alike. There's no dedicated "welfare cases" section anywhere
+    // else in the app to fall back to. Fixed by always merging those two
+    // types into whichever tab you're on — safe to do for every caller,
+    // staff included: the backend's own listCases visibility check
+    // (canManageWelfareCase) still independently decides who can actually
+    // see a given welfare case, this only changes which TYPES are asked
+    // for, not who's allowed to see them. (An earlier version of this fix
+    // special-cased `isStaff` here, which depends on the auth context's
+    // `me` — still loading for a moment right after a hard refresh — and
+    // caused exactly the flicker this comment now avoids: showing the
+    // case ONLY in that narrow window before `me` resolved, then hiding it
+    // again on the next navigation once it had. Not staff-specific at all,
+    // so no such timing dependency now.)
+    const all = await casesApi.listCases({ ...(statusFilter ? { status: statusFilter } : {}) });
+    setCases(sectionType ? all.filter((c) => c.caseType === sectionType || WELFARE_CASE_TYPES.has(c.caseType)) : all);
     setLoading(false);
   }
 
@@ -111,10 +131,12 @@ export function Cases() {
       <PageHeader title={pageTitle} description={pageDescription} action={<Button onClick={() => setReportOpen(true)}>Report</Button>} />
 
       {sectionType === 'incident' && (
-        <Alert tone="warning">
-          Emergency / SOS reporting (BR §5.1 `/hostel/emergency`) isn't built yet — for anything urgent, contact hostel staff
-          directly rather than filing an incident report here.
-        </Alert>
+        <div className="mb-4">
+          <Alert tone="warning">
+            Emergency / SOS reporting (BR §5.1 `/hostel/emergency`) isn't built yet — for anything urgent, contact hostel
+            staff directly rather than filing an incident report here.
+          </Alert>
+        </div>
       )}
 
       {isStaff && (
@@ -421,15 +443,23 @@ function CaseDetailSheet({
   const [staffOptions, setStaffOptions] = useState<casesApi.CaseStaffEntry[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
 
+  // UOS_Final.docx audit (12 Sep 2026) — real gap: the case's own assignee
+  // (set during triage, `assignedTo` below) was never shown anywhere once
+  // triage was done, because this fetch used to only run while still at
+  // the 'reported' triage step — staffOptions was empty by the time
+  // there was actually an assignee to resolve a name for. Fetching
+  // whenever the sheet can manage the case (not gated on status) makes
+  // staffOptions double as a general staff-name lookup, used below to
+  // show who a case is actually assigned to.
   useEffect(() => {
-    if (!canManage || detail.status !== 'reported') return;
+    if (!canManage) return;
     setLoadingStaff(true);
     void casesApi.listCaseStaffDirectory().then((staff) => {
       setStaffOptions(staff);
       setLoadingStaff(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canManage, detail.status]);
+  }, [canManage]);
   // Investigation / resolution / notice / decision / appeal / reopen fields
   const [notes, setNotes] = useState('');
   const [noticeText, setNoticeText] = useState('');
@@ -500,6 +530,15 @@ function CaseDetailSheet({
             <p className="text-slate-500">Desk ticket: {caseItemForRender.deskTicketReference.status} (stub reference — no live Desk system yet)</p>
           )}
           {caseItemForRender.severity && <p className="text-slate-500">Severity: {caseItemForRender.severity}</p>}
+          {/* Real gap, found via the UOS_Final.docx audit (12 Sep 2026) —
+              "owner should always be visible on an open item". The
+              assignee was captured at triage (assignCase/triageCase) and
+              stored the whole time, just never shown here. */}
+          {caseItemForRender.assignedTo && (
+            <p className="text-slate-500">
+              Assigned to: {staffOptions.find((s) => s.id === caseItemForRender.assignedTo)?.name ?? caseItemForRender.assignedTo.slice(0, 8)}
+            </p>
+          )}
           {caseItemForRender.investigationNotes && <p className="text-slate-500">Notes: {caseItemForRender.investigationNotes}</p>}
           {caseItemForRender.noticeText && <p className="text-slate-500">Notice: {caseItemForRender.noticeText}</p>}
           {caseItemForRender.decisionOutcome && (
@@ -734,7 +773,20 @@ function CaseDetailSheet({
             <FieldWrapper label="Notice text (if issuing a disciplinary notice)" htmlFor="cd-notice">
               <Textarea id="cd-notice" value={noticeText} onChange={(e) => setNoticeText(e.target.value)} />
             </FieldWrapper>
-            <div className="flex gap-2">
+            {/* Real bug, found live via SELF-TEST-GUIDE.md Batch 24 — this
+                used to be a single row (`flex gap-2`) with both buttons set
+                to fullWidth (`w-full`). Every button in the app also has
+                `shrink-0` and `whitespace-nowrap` on it (so its label never
+                silently wraps mid-word) — put two `w-full` buttons in one
+                row and each one demands the ENTIRE row's width for itself,
+                and neither is allowed to give up its text's natural width
+                either. "Issue disciplinary notice" is long enough that the
+                pair simply doesn't fit side by side in a sheet this narrow,
+                so it was pushed out of the visible sheet. Stacking them
+                (one per row) is the same "full width, mobile-first" style
+                already used by every other button in this app; it just
+                also happens to be the fix. */}
+            <div className="flex flex-col gap-2">
               <Button variant="secondary" fullWidth disabled={submitting} onClick={() => void run(() => casesApi.resolveCase(detail.id, notes || undefined))}>
                 Resolve
               </Button>

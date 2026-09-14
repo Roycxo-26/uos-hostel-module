@@ -100,6 +100,15 @@ export async function listMyGuardians(req: Request, res: Response, next: NextFun
   }
 }
 
+export async function listAllGuardians(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const verified = req.query.verified === undefined ? undefined : req.query.verified === 'true';
+    success(res, { guardians: await service.listAllGuardians(req.user, { verified }) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function verifyGuardian(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     success(res, { guardian: await service.verifyGuardian(req.user, req.params.guardianId) });

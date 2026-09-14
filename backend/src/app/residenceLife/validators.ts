@@ -10,7 +10,7 @@ export const requestBookingSchema = z
     endAt: z.string().datetime(),
     attendeeCount: z.number().int().positive().optional(),
   })
-  .refine((v) => new Date(v.endAt) > new Date(v.startAt), { message: 'endAt must be after startAt', path: ['endAt'] });
+  .refine((v) => new Date(v.endAt) > new Date(v.startAt), { message: 'The end time must be after the start time.', path: ['endAt'] });
 
 export const decideBookingSchema = z.object({
   decision: z.enum(['approved', 'rejected']),

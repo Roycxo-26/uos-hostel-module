@@ -1,11 +1,24 @@
+import { Badge } from '@/components/ui/badge';
+
 type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
+// bg/text pairs — every colour here is CSS-variable-backed (see
+// index.css's @theme block), so this same class list already renders
+// correctly in dark mode with no separate dark: variant needed.
 const toneClasses: Record<Tone, string> = {
-  neutral: 'bg-slate-100 text-slate-700',
-  info: 'bg-sky-50 text-sky-700',
-  success: 'bg-emerald-50 text-emerald-700',
-  warning: 'bg-amber-50 text-amber-800',
-  danger: 'bg-rose-50 text-rose-700',
+  neutral: 'bg-slate-100 text-slate-700 ring-slate-200',
+  info: 'bg-sky-50 text-sky-700 ring-sky-200',
+  success: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  warning: 'bg-amber-50 text-amber-800 ring-amber-200',
+  danger: 'bg-rose-50 text-rose-700 ring-rose-200',
+};
+
+const dotClasses: Record<Tone, string> = {
+  neutral: 'bg-slate-400',
+  info: 'bg-sky-600',
+  success: 'bg-emerald-600',
+  warning: 'bg-amber-600',
+  danger: 'bg-rose-600',
 };
 
 // One lookup for every status value across the app, keyed exactly as the
@@ -269,13 +282,9 @@ function humanize(status: string): string {
 export function StatusPill({ status, domain }: { status: string; domain?: 'movement' | 'key' | 'custody' | 'closure' | 'visitor' | 'laundry' }) {
   const entry = (domain && STATUS_MAP[`${domain}:${status}`]) || STATUS_MAP[status] || { label: humanize(status), tone: 'neutral' as Tone };
   return (
-    <span
-      className={[
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-        toneClasses[entry.tone],
-      ].join(' ')}
-    >
+    <Badge variant="outline" className={['gap-1.5 px-2.5 py-0.5 h-auto font-medium ring-1 ring-inset border-transparent', toneClasses[entry.tone]].join(' ')}>
+      <span className={['h-1.5 w-1.5 shrink-0 rounded-full', dotClasses[entry.tone]].join(' ')} aria-hidden="true" />
       {entry.label}
-    </span>
+    </Badge>
   );
 }

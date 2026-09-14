@@ -97,15 +97,27 @@ function BookingsTab({ isStaff, currentUserId }: { isStaff: boolean; currentUser
   const [bookings, setBookings] = useState<FacilityBooking[]>([]);
   const [areas, setAreas] = useState<CommonArea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  // Real bug found live via SELF-TEST-GUIDE.md Batch 23 (while testing a
+  // different page): no try/catch here meant a failed fetch — e.g. the
+  // common-areas listing being staff-only until the fix alongside this
+  // one — left `loading` stuck true forever, an infinite spinner with no
+  // way out for whoever hit it.
   async function load() {
     setLoading(true);
-    const [b, a] = await Promise.all([residenceLifeApi.listBookings(), commonAreasApi.listCommonAreas()]);
-    setBookings(b);
-    setAreas(a);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const [b, a] = await Promise.all([residenceLifeApi.listBookings(), commonAreasApi.listCommonAreas()]);
+      setBookings(b);
+      setAreas(a);
+    } catch (err) {
+      setLoadError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -121,6 +133,8 @@ function BookingsTab({ isStaff, currentUserId }: { isStaff: boolean; currentUser
           Request a booking
         </Button>
       </div>
+
+      {loadError && <Alert>{loadError}</Alert>}
 
       {loading ? (
         <PageSpinner />

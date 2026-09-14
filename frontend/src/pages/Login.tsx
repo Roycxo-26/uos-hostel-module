@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Alert, Button, FieldWrapper, Textarea } from '../design-system';
@@ -44,22 +45,47 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:flex">
-      {/* Brand panel — desktop only. Deliberately a flat accent fill, not a
-          gradient/photo hero: this is the one screen a white-label deploy's
-          own primary colour should read as unmistakably "theirs" from across
-          the room, and a flat, confident colour field does that more than a
-          stock-photo campus hero would. */}
+    <div className="min-h-screen bg-background lg:flex">
+      <div className="ambient-surface" aria-hidden="true" />
+      {/* Brand panel — desktop only. A flat accent fill, not a gradient/
+          photo hero: this is the one screen a white-label deploy's own
+          primary colour should read as unmistakably "theirs" from across
+          the room. A slow, subtle drifting radial glow is the one motion
+          flourish here — restrained enough to still read as "confident
+          colour field", not a marketing-site hero animation. */}
       <div className="relative hidden overflow-hidden bg-accent lg:flex lg:w-[42%] lg:flex-col lg:justify-between lg:p-10">
-        <div className="flex items-center gap-2.5 text-accent-fg">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15">
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-24 -top-24 h-112 w-md rounded-full bg-[rgba(255,255,255,0.08)] blur-3xl"
+          animate={{ x: [0, 30, 0], y: [0, 20, 0] }}
+          transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-32 -right-16 h-96 w-96 rounded-full bg-[rgba(255,255,255,0.06)] blur-3xl"
+          animate={{ x: [0, -20, 0], y: [0, -24, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+        />
+
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="relative flex items-center gap-2.5 text-accent-fg"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(255,255,255,0.15)]">
             <BuildingIcon />
           </span>
-          <span className="text-sm font-semibold tracking-wide">UOS Hostel Management</span>
-        </div>
+          <span className="font-display text-sm font-semibold tracking-wide">UOS Hostel Management</span>
+        </motion.div>
 
-        <div className="text-accent-fg">
-          <p className="text-2xl font-semibold leading-snug">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="relative text-accent-fg"
+        >
+          <p className="font-display text-3xl font-bold leading-snug tracking-tight text-balance">
             One system for hostel operations, from application to check-out.
           </p>
           {/* opacity-90, not text-accent-fg/90: our accent colours come from
@@ -71,32 +97,37 @@ export function Login() {
               softer" against a runtime-supplied colour. */}
           <ul className="mt-6 space-y-3 text-sm text-accent-fg opacity-90">
             <li className="flex items-center gap-2.5">
-              <ClipboardIcon className="shrink-0" />
+              <ClipboardIcon className="shrink-0" size={18} />
               Applications, review, and waitlisting
             </li>
             <li className="flex items-center gap-2.5">
-              <BedIcon className="shrink-0" />
+              <BedIcon className="shrink-0" size={18} />
               Room and bed allocation with live availability
             </li>
             <li className="flex items-center gap-2.5">
-              <BuildingIcon className="shrink-0" />
+              <BuildingIcon className="shrink-0" size={18} />
               One deployment, configured per campus
             </li>
           </ul>
-        </div>
+        </motion.div>
 
-        <p className="text-xs text-accent-fg opacity-70">Part of the UOS platform — university operating system</p>
+        <p className="relative text-xs text-accent-fg opacity-70">Part of the UOS platform — university operating system</p>
       </div>
 
       {/* Form panel */}
       <div className="flex min-h-screen flex-1 items-center justify-center px-4 py-12 lg:min-h-0">
-        <div className="w-full max-w-md space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="w-full max-w-md space-y-6"
+        >
           <div className="text-center lg:text-left">
             <span className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-accent-subtle text-accent lg:hidden">
               <BuildingIcon />
             </span>
-            <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
-            <p className="mt-1 text-sm text-slate-500">Standalone dev mode — paste a token minted via the CLI</p>
+            <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Sign in</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Standalone dev mode — paste a token minted via the CLI</p>
           </div>
 
           {error && <Alert>{error}</Alert>}
@@ -106,7 +137,7 @@ export function Login() {
               e.preventDefault();
               void handleSubmit();
             }}
-            className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-panel"
+            className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-panel"
           >
             <FieldWrapper
               label="Token"
@@ -118,7 +149,7 @@ export function Login() {
                 value={token}
                 onChange={(e) => setTokenValue(e.target.value)}
                 placeholder="eyJhbGciOi..."
-                className="min-h-[8rem] font-mono text-xs"
+                className="min-h-32 font-mono text-xs"
               />
             </FieldWrapper>
             <Button type="submit" fullWidth disabled={submitting || loading || !token.trim()}>
@@ -129,7 +160,7 @@ export function Login() {
           <p className="text-center text-xs text-slate-400 lg:text-left">
             No live auth-server in this mode — see backend/scripts/dev-mint-token.ts
           </p>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ export const createAssignmentSchema = z
     path: ['scopeType'],
   })
   .refine((v) => !v.effectiveTo || !v.effectiveFrom || v.effectiveTo > v.effectiveFrom, {
-    message: 'effectiveTo must be after effectiveFrom',
+    message: 'The "effective to" date must be after the "effective from" date.',
     path: ['effectiveTo'],
   })
   .refine((v) => v.substituteUserId !== v.assigneeUserId, {
@@ -67,7 +67,7 @@ export const createDutyAssignmentSchema = z
     substituteUserId: z.string().uuid().optional(),
   })
   .refine((v) => v.effectiveTo > v.effectiveFrom, {
-    message: 'effectiveTo must be after effectiveFrom',
+    message: 'The "effective to" date must be after the "effective from" date.',
     path: ['effectiveTo'],
   })
   .refine((v) => v.substituteUserId !== v.assigneeUserId, {
@@ -91,7 +91,7 @@ export const createSafeguardingAssignmentSchema = z
     effectiveTo: z.string().datetime().optional(),
   })
   .refine((v) => !v.effectiveTo || !v.effectiveFrom || v.effectiveTo > v.effectiveFrom, {
-    message: 'effectiveTo must be after effectiveFrom',
+    message: 'The "effective to" date must be after the "effective from" date.',
     path: ['effectiveTo'],
   });
 
@@ -112,6 +112,6 @@ export const createFinanceRoleAssignmentSchema = z
     effectiveTo: z.string().datetime().optional(),
   })
   .refine((v) => !v.effectiveTo || !v.effectiveFrom || v.effectiveTo > v.effectiveFrom, {
-    message: 'effectiveTo must be after effectiveFrom',
+    message: 'The "effective to" date must be after the "effective from" date.',
     path: ['effectiveTo'],
   });

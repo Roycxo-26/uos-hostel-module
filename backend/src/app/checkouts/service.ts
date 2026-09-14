@@ -435,7 +435,7 @@ export async function addCheckoutInventoryItem(user: AuthUser, id: string, input
       .where('checkin_inventory_items.id', input.checkinItemId)
       .andWhere('checkins.allocation_id', before.allocation_id)
       .first('checkin_inventory_items.id');
-    if (!checkinItem) throw new ValidationError('checkinItemId does not belong to this resident\'s own check-in');
+    if (!checkinItem) throw new ValidationError('That item is not from this resident\'s own check-in record.');
   }
 
   const row = await repo.createInventoryItem({
@@ -501,7 +501,7 @@ export async function approveCheckout(user: AuthUser, id: string, input: z.infer
   }
 
   const requiredRole = allClear ? 'warden' : 'head_warden';
-  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id, entityType: 'checkout' });
 
   const after = await repo.update(id, {
     status: 'completed',

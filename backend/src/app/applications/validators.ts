@@ -100,7 +100,7 @@ export const decideApplicationSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['eligibilityConditions'],
-        message: `eligibilityConditions only applies when eligibilityOutcome is 'conditionally_eligible'`,
+        message: `Eligibility conditions only apply when the eligibility outcome is "Conditionally eligible."`,
       });
     }
   });

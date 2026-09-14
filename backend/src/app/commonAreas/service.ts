@@ -142,14 +142,14 @@ export async function recordInspection(user: AuthUser, input: z.infer<typeof rec
     await notifyCampusStaff(db, user.org_id, area.campus_id, {
       type: 'sanitation_inspection.failed',
       title: `Sanitation inspection ${status === 'failed' ? 'failed' : 'needs reinspection'}: ${area.name}`,
-      link: '/structure',
+      link: '/common-areas',
     });
   }
   if (input.pestIndicator) {
     await notifyCampusStaff(db, user.org_id, area.campus_id, {
       type: 'sanitation_inspection.pest_indicator',
       title: `Pest indicator flagged during inspection of ${area.name} — consider a pest-control report`,
-      link: '/structure',
+      link: '/common-areas',
     });
   }
 
@@ -212,7 +212,7 @@ export async function reportOutage(user: AuthUser, input: z.infer<typeof reportO
   await notifyCampusStaff(db, user.org_id, hostel.campus_id, {
     type: 'utility_outage.reported',
     title: `${input.outageType.replace(/_/g, ' ')} outage reported (${input.severity}) — ${occupants.length} resident(s) affected`,
-    link: '/structure',
+    link: '/common-areas',
   });
 
   return outage;
@@ -414,7 +414,7 @@ export async function reportPestFinding(user: AuthUser, input: z.infer<typeof re
     await notifyCampusStaff(db, user.org_id, campusId, {
       type: 'pest_control.recurrence',
       title: `Possible recurring infestation — this is treatment attempt #${priorCount + 1} for this location`,
-      link: '/structure',
+      link: '/common-areas',
     });
   }
 

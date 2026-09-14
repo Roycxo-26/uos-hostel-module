@@ -61,6 +61,19 @@ export function listGuardiansForStudent(studentId: string) {
   return db('resident_guardians').where({ student_id: studentId }).orderBy('is_primary', 'desc');
 }
 
+/** Real gap found live via SELF-TEST-GUIDE.md Batch 23: `verifyGuardian`
+ * (service.ts) and its route were fully built, but staff had no way to
+ * discover which guardian to verify — `listMyGuardians` only ever returns
+ * the CALLING user's own contacts, and a movement request (the other
+ * place a guardian shows up) can't be submitted until the guardian is
+ * already verified. Unverified-first so the actionable ones surface
+ * without staff having to scroll past everything already done. */
+export function listGuardiansForCampus(filters?: { verified?: boolean }) {
+  const query = db('resident_guardians');
+  if (filters?.verified !== undefined) query.where({ verified: filters.verified });
+  return query.orderBy('verified', 'asc').orderBy('created_at', 'desc');
+}
+
 export function updateGuardian(id: string, data: Record<string, unknown>) {
   return db('resident_guardians')
     .where({ id })

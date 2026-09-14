@@ -100,6 +100,22 @@ export function findActiveHolder(privilegeType: string, scopeType: string, scope
     .first();
 }
 
+/** Escalation Level 1 substitute fallback (BRD's own ladder, see
+ * resolveDutyAuthority) — unlike findActiveHolder above, which is strictly
+ * 'active' + within window (right for a caller that needs a currently
+ * valid holder, e.g. routing a new maintenance ticket), this returns the
+ * single most recent assignment row for this privilege+scope regardless of
+ * status. A named substitute lives on the SAME row as the primary — once
+ * that row leaves 'active' (revoked or lapsed), findActiveHolder can no
+ * longer see it at all, which is exactly the moment the substitute is
+ * supposed to start covering. */
+export function findLatestHolder(privilegeType: string, scopeType: string, scopeId: string) {
+  return db('responsibility_assignments')
+    .where({ privilege_type: privilegeType, scope_type: scopeType, scope_id: scopeId })
+    .orderBy('effective_from', 'desc')
+    .first();
+}
+
 /** Escalation Level 2 in the BRD's own ladder ("Head Warden") — any
  * currently active Head Warden on the campus, the same staff-lookup
  * query utils/notify.ts's notifyCampusStaff already uses, narrowed to

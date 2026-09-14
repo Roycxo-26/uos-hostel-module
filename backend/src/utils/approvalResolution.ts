@@ -21,6 +21,23 @@ import { ForbiddenError } from '../middlewares/errorHandler';
 
 export type ApprovalMode = 'NORMAL' | 'DELEGATED' | 'ESCALATED' | 'BYPASS';
 
+// Every distinct `entityType` any module actually passes to
+// recordApprovalResolution today — kept in one place so a delegation's
+// "exclusions" picker (backend/src/app/delegations) has a real, closed
+// list instead of a free-text field that could name something that was
+// never actually approval-gated. Add to this list only alongside a real
+// new authorizeApproval() call site, same discipline as any other enum.
+export const DELEGATABLE_ENTITY_TYPES = [
+  'case',
+  'checkout',
+  'closure_case',
+  'movement_extension_request',
+  'movement_request',
+  'resident_privilege_change',
+  'transfer_request',
+] as const;
+export type DelegatableEntityType = (typeof DELEGATABLE_ENTITY_TYPES)[number];
+
 export interface ApprovalResolution {
   mode: ApprovalMode;
   /** Null for DELEGATED/ESCALATED — a role-pool resolution has no single
@@ -35,8 +52,12 @@ export interface ApprovalResolution {
  * more privileged"). Used only to decide ESCALATED — whether the actor
  * holds a role ranked above the one the action actually requires — not to
  * duplicate the permission check itself (getPermissions/hasPermission via
- * requireHostelPermission still owns that). */
-async function getUserHighestRoleLevel(userId: string, campusId: string): Promise<number | null> {
+ * requireHostelPermission still owns that). Exported for
+ * backend/src/app/delegations/service.ts's own use of the same rule: you
+ * may only delegate away a role's authority if you currently outrank or
+ * match that role yourself — a plain Warden can delegate 'warden', never
+ * 'head_warden'. */
+export async function getUserHighestRoleLevel(userId: string, campusId: string): Promise<number | null> {
   const row = await db('user_roles')
     .join('role_levels', 'role_levels.role', 'user_roles.role')
     .where({ 'user_roles.user_id': userId, 'user_roles.campus_id': campusId, 'user_roles.is_active': true })
@@ -45,16 +66,26 @@ async function getUserHighestRoleLevel(userId: string, campusId: string): Promis
   return row?.level ?? null;
 }
 
-async function getRoleLevel(role: string): Promise<number | null> {
+export async function getRoleLevel(role: string): Promise<number | null> {
   const row = await db('role_levels').where({ role }).first('level');
   return row?.level ?? null;
 }
 
-async function hasActiveDelegation(userId: string, role: string, campusId: string): Promise<boolean> {
+async function hasActiveDelegation(userId: string, role: string, campusId: string, entityType?: string): Promise<boolean> {
   const row = await db('approver_delegations')
     .where({ delegate_user_id: userId, role, campus_id: campusId, active: true })
     .andWhere('effective_from', '<=', db.fn.now())
     .andWhere('effective_to', '>=', db.fn.now())
+    // A delegation with `entityType` in its own `exclusions` list does not
+    // cover this specific approval, even though role/campus/dates all
+    // match — e.g. a Head Warden delegated routine transfers to a Warden
+    // but excluded 'resident_privilege_change' to keep deciding those
+    // personally. No entityType passed at the call site (legacy callers,
+    // or a caller that genuinely has none) means exclusions can't apply —
+    // matches this function's pre-exclusions behaviour exactly.
+    .modify((qb) => {
+      if (entityType) qb.andWhereRaw('NOT (exclusions @> ?)', [JSON.stringify([entityType])]);
+    })
     .first('id');
   return Boolean(row);
 }
@@ -77,9 +108,15 @@ export async function authorizeApproval(
     campusId: string;
     allowBypass?: boolean;
     bypassReason?: string;
+    /** Which kind of record this approval decides — checked against a
+     * delegation's own `exclusions`. Optional: a call site with no
+     * meaningful entity type (none exist today, but the param stays
+     * optional rather than forcing every future caller to invent one)
+     * simply can't be excluded from, same as before this existed. */
+    entityType?: DelegatableEntityType;
   }
 ): Promise<ApprovalResolution> {
-  const { requiredRole, campusId, allowBypass, bypassReason } = params;
+  const { requiredRole, campusId, allowBypass, bypassReason, entityType } = params;
 
   // Platform admin bypass (org_admin/is_super_admin) is deliberately NOT
   // checked here — BR §5.2: "SYSTEM_ADMIN cannot bypass a business approval
@@ -105,7 +142,7 @@ export async function authorizeApproval(
     }
   }
 
-  if (await hasActiveDelegation(user.sub, requiredRole, campusId)) {
+  if (await hasActiveDelegation(user.sub, requiredRole, campusId, entityType)) {
     return { mode: 'DELEGATED', plannedApproverUserId: null, governingRule: `active delegation for ${requiredRole} at campus` };
   }
 

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireHostelPermission } from '../../middlewares/requireHostelPermission';
+import { withIdempotency } from '../../middlewares/idempotency';
 import * as controller from './controller';
 
 // HOSTEL-GAP-ANALYSIS.md D17.20 (TODO.md Batch 18). One permission
@@ -19,8 +20,11 @@ export function roomAccessRouter(): Router {
   r.get('/entries/:entryId', canManage, controller.getEntry);
   r.post('/entries/:entryId/approve', canManage, controller.approveEntry);
   r.post('/entries/:entryId/notify', canManage, controller.markNotified);
-  r.post('/entries/:entryId/enter', canManage, controller.recordEntry);
-  r.post('/entries/:entryId/exit', canManage, controller.recordExit);
+  // Frontline/offline support (12 Sep 2026) — the two actions a member of
+  // staff actually taps standing at the room, wrapped for the same
+  // offline-retry safety as maintenance's start/resolve.
+  r.post('/entries/:entryId/enter', canManage, withIdempotency('roomAccess.recordEntry', controller.recordEntry));
+  r.post('/entries/:entryId/exit', canManage, withIdempotency('roomAccess.recordExit', controller.recordExit));
   r.post('/entries/:entryId/cancel', canManage, controller.cancelEntry);
 
   r.post('/keys', canManage, controller.issueKey);

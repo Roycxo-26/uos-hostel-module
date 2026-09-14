@@ -24,6 +24,21 @@ function isStatusCodedError(err: unknown): err is StatusCodedError {
   );
 }
 
+/** `['destinationCampusId']` -> "Destination campus id"; `['items', 0,
+ * 'quantity']` -> "Items → #1 → Quantity". No per-field dictionary to
+ * maintain — every Zod schema in the app already names its fields in
+ * camelCase, so a generic camelCase-to-words split covers all of them,
+ * present and future, not just the ones someone remembers to special-case. */
+function humanizeFieldPath(path: (string | number)[]): string {
+  return path
+    .map((segment) => {
+      if (typeof segment === 'number') return `#${segment + 1}`;
+      const spaced = segment.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
+      return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
+    })
+    .join(' → ');
+}
+
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
   if (isStatusCodedError(err)) {
     res.status(err.statusCode).json({ success: false, code: err.code, error: err.message });
@@ -42,7 +57,16 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   // Headcount's "paste a room ID" field with a room *code* instead of its
   // UUID; the fix belongs here, not in that one call site.
   if (err instanceof ZodError) {
-    const message = err.issues.map((issue) => `${issue.path.join('.') || '(request body)'}: ${issue.message}`).join('; ');
+    // Every field name in this schema-driven error path is a raw camelCase
+    // API field (`campusId`, `retrospectiveReviewDeadline`, ...) — showing
+    // that straight to a user reads as a bug report, not a helpful message.
+    // `humanizeFieldPath` turns it into plain words ("Campus", "Retrospective
+    // review deadline") instead; this one spot fixes every Zod validation
+    // error across the whole app at once, not just the field names someone
+    // happened to already write a friendly `.refine()` message for.
+    const message = err.issues
+      .map((issue) => (issue.path.length > 0 ? `${humanizeFieldPath(issue.path)}: ${issue.message}` : issue.message))
+      .join('; ');
     res.status(400).json({ success: false, code: 'VALIDATION_ERROR', error: message });
     return;
   }

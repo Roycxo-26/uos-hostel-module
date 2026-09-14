@@ -1,43 +1,54 @@
 import { forwardRef } from 'react';
-import type { ButtonHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
+import { Button as ShadcnButton } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type Size = 'md' | 'sm';
+type ShadcnButtonProps = ComponentProps<typeof ShadcnButton>;
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'link';
+type Size = 'md' | 'sm' | 'icon';
+
+const VARIANT_MAP: Record<Variant, ShadcnButtonProps['variant']> = {
+  primary: 'default',
+  secondary: 'secondary',
+  ghost: 'ghost',
+  danger: 'destructive',
+  outline: 'outline',
+  link: 'link',
+};
+
+const SIZE_MAP: Record<Size, ShadcnButtonProps['size']> = {
+  // "md"/"sm" are this app's own naming (kept so none of the 30 pages that
+  // already call <Button size="sm"> etc. had to change) — flow.md §10.4's
+  // 44px tap-target requirement is why "md" maps to the CLI-generated
+  // button's own "touch" size rather than its much smaller default (see
+  // components/ui/button.tsx's own comment on that size).
+  md: 'touch',
+  sm: 'sm',
+  icon: 'icon-touch',
+};
+
+export interface ButtonProps extends Omit<ShadcnButtonProps, 'variant' | 'size'> {
   variant?: Variant;
   size?: Size;
   fullWidth?: boolean;
 }
 
-const variantClasses: Record<Variant, string> = {
-  primary: 'bg-accent text-accent-fg hover:brightness-110 active:brightness-95 disabled:opacity-50',
-  secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:opacity-50',
-  ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 disabled:opacity-50',
-  danger: 'bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50',
-};
-
-const sizeClasses: Record<Size, string> = {
-  md: 'min-h-touch px-4 text-sm',
-  sm: 'h-9 px-3 text-sm',
-};
-
-// Every interactive control in the app routes through this — that's what
-// keeps tap targets, focus rings and disabled states consistent instead of
-// each screen inventing its own button styling (the fastest way an app ends
-// up looking assembled rather than designed).
+/**
+ * Every interactive control in the app routes through this. It's a thin
+ * adapter over the real, CLI-generated `components/ui/button` — all
+ * styling/variants/motion live there, this file only translates this
+ * app's existing prop vocabulary (variant="danger", size="md", fullWidth)
+ * onto shadcn's own (variant="destructive", size="touch", className) so
+ * none of the ~150 existing call sites across 30 pages needed to change.
+ */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', fullWidth, className = '', ...props }, ref) => (
-    <button
+  ({ variant = 'primary', size = 'md', fullWidth, className, ...props }, ref) => (
+    <ShadcnButton
       ref={ref}
-      className={[
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
-        variantClasses[variant],
-        sizeClasses[size],
-        fullWidth ? 'w-full' : '',
-        className,
-      ].join(' ')}
+      variant={VARIANT_MAP[variant]}
+      size={SIZE_MAP[size]}
+      className={cn(fullWidth && 'w-full', className)}
       {...props}
     />
   ),

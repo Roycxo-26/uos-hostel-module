@@ -11,6 +11,13 @@ const PRIORITIES = ['low', 'normal', 'high', 'critical'] as const;
 // may report against any room or a location note (a common-area issue with
 // no single room). 'safety_emergency' auto-bypasses verification, enforced
 // in the service (depends on the category alone, not caller input).
+// Frontline/offline support (12 Sep 2026) — widened from 2000 so a
+// compressed camera photo (a data: URI, from frontend/src/offline/
+// compressImage.ts) fits — same "it's just a URL field" stopgap pattern
+// as everywhere else in this schema, just sized for an embedded photo
+// instead of a short link. `.url()` already accepts a `data:` URI.
+const photoDataUrlSchema = z.string().trim().url().max(500_000);
+
 export const reportTicketSchema = z
   .object({
     roomId: z.string().uuid().optional(),
@@ -18,7 +25,7 @@ export const reportTicketSchema = z
     category: z.enum(CATEGORIES),
     description: z.string().trim().min(1).max(1000),
     priority: z.enum(PRIORITIES).default('normal'),
-    evidencePhotoUrl: z.string().trim().url().max(2000).optional(),
+    evidencePhotoUrl: photoDataUrlSchema.optional(),
   })
   .refine((v) => v.roomId || v.locationNote, {
     message: 'Either roomId or locationNote is required',
@@ -39,7 +46,7 @@ export const assignTicketSchema = z.object({
 
 export const resolveTicketSchema = z.object({
   resolutionNotes: z.string().trim().min(1).max(1000),
-  resolutionEvidenceUrl: z.string().trim().url().max(2000).optional(),
+  resolutionEvidenceUrl: photoDataUrlSchema.optional(),
 });
 
 export const confirmTicketResolutionSchema = z.object({}).strict();

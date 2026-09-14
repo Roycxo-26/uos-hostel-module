@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireHostelPermission } from '../../middlewares/requireHostelPermission';
+import { withIdempotency } from '../../middlewares/idempotency';
 import * as controller from './controller';
 
 // D17.08 (TODO.md Batch 29). One permission ('maintenance:manage') gates
@@ -16,8 +17,12 @@ export function maintenanceRouter(): Router {
   r.get('/tickets/:ticketId', controller.getTicket);
   r.post('/tickets/:ticketId/verify', controller.verifyTicket);
   r.post('/tickets/:ticketId/assign', canManage, controller.assignTicket);
-  r.post('/tickets/:ticketId/start', canManage, controller.startTicketWork);
-  r.post('/tickets/:ticketId/resolve', canManage, controller.resolveTicket);
+  // Frontline/offline support (12 Sep 2026) — these two are the ones a
+  // Floor Incharge/maintenance worker actually taps while walking around a
+  // job with a flaky connection; wrapped so a retried offline-queue submit
+  // replays the original result instead of risking a double-apply.
+  r.post('/tickets/:ticketId/start', canManage, withIdempotency('maintenance.startTicketWork', controller.startTicketWork));
+  r.post('/tickets/:ticketId/resolve', canManage, withIdempotency('maintenance.resolveTicket', controller.resolveTicket));
   r.post('/tickets/:ticketId/confirm', controller.confirmTicketResolution);
   r.post('/tickets/:ticketId/reopen', controller.reopenTicket);
   r.post('/tickets/:ticketId/cancel', controller.cancelTicket);

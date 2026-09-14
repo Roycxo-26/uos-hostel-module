@@ -37,7 +37,7 @@ export const createCompetitionSchema = z
     appealWindowDays: z.number().int().min(0).default(7),
     tieBreakerRule: z.string().trim().max(500).optional(),
   })
-  .refine((v) => v.endDate > v.startDate, { message: 'endDate must be after startDate', path: ['endDate'] });
+  .refine((v) => v.endDate > v.startDate, { message: 'The end date must be after the start date.', path: ['endDate'] });
 
 export const generateEntriesSchema = z.object({}).strict();
 

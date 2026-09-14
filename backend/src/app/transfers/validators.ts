@@ -44,14 +44,14 @@ export const requestTransferSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['retrospectiveReviewDeadline'],
-        message: "retrospectiveReviewDeadline is required when transferType is 'emergency' — BR §7",
+        message: 'A retrospective review deadline is required for an emergency transfer.',
       });
     }
     if (val.isTemporary && val.transferType !== 'emergency') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['isTemporary'],
-        message: "isTemporary is only meaningful for transferType 'emergency' — a normal transfer has no round-trip concept",
+        message: 'Marking a transfer as temporary only applies to emergency transfers — a normal transfer has no return trip.',
       });
     }
   });
@@ -64,7 +64,7 @@ export const decideTransferSchema = z
   })
   .superRefine((val, ctx) => {
     if (val.decision === 'approved' && !val.newBedId) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['newBedId'], message: 'newBedId is required when approving a transfer' });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['newBedId'], message: 'Please choose a new bed — it is required when approving a transfer.' });
     }
   });
 

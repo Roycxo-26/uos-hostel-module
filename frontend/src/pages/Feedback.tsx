@@ -369,7 +369,7 @@ function RespondSheet({ campaign, onClose, onSubmitted }: { campaign: FeedbackCa
       <div className="space-y-4">
         {error && <Alert>{error}</Alert>}
         {done ? (
-          <Alert>Thank you — your feedback was recorded.</Alert>
+          <Alert tone="success">Thank you — your feedback was recorded.</Alert>
         ) : (
           <>
             <Alert>{ANONYMITY_LABELS[campaign.anonymityMode]}</Alert>

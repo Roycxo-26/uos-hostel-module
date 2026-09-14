@@ -93,6 +93,15 @@ export async function listMyGuardians(user: AuthUser) {
   return repo.listGuardiansForStudent(user.sub);
 }
 
+/** Staff-only — the other half of the "a resident added a new guardian
+ * contact awaiting verification" notification above: without this, staff
+ * had no screen to actually act on that notification once it arrived.
+ * Real gap found live via SELF-TEST-GUIDE.md Batch 23. */
+export async function listAllGuardians(user: AuthUser, filters: { verified?: boolean }) {
+  if (!(await canManageMovements(user))) throw new ForbiddenError("Only staff can list every resident's guardian contacts");
+  return repo.listGuardiansForCampus(filters);
+}
+
 /** Staff-only — confirms the contact itself is genuine, separate from any
  * one outpass. Deliberately no "how" is captured here (a phone call, an
  * in-person form, whatever the institution's own process is) — that's
@@ -352,7 +361,7 @@ export async function recordGuardianCallConfirmation(user: AuthUser, movementId:
 
   const guardian = await repo.findGuardianById(input.guardianId);
   if (!guardian || guardian.student_id !== movement.student_id) {
-    throw new ValidationError('guardianId must be a registered guardian for this resident');
+    throw new ValidationError('That guardian is not registered for this resident.');
   }
 
   const confirmation = await repo.createConfirmation({
@@ -422,7 +431,7 @@ export async function decideMovement(user: AuthUser, id: string, input: z.infer<
   if (before.status !== 'requested') throw new ConflictError(`Cannot decide a movement request in status '${before.status}'`);
 
   const requiredRole = requiredRoleFor(before.movement_type);
-  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id, entityType: 'movement_request' });
 
   let bypassed = false;
   if (input.decision === 'approved') {
@@ -725,7 +734,7 @@ export async function decideExtension(user: AuthUser, extensionId: string, input
   if (!movement) throw new NotFoundError('Movement request');
 
   const requiredRole = requiredRoleFor(movement.movement_type);
-  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id, entityType: 'movement_extension_request' });
 
   if (input.decision === 'approved') {
     const confirmation = before.guardian_confirmation_id ? await repo.findConfirmationById(before.guardian_confirmation_id) : null;

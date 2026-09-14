@@ -59,6 +59,13 @@ export async function seed(knex: Knex): Promise<void> {
     // BR §2 / flow.md HST-WF-22: Warden/Head Warden assign Room Head/Floor
     // In-charge — see hostel.responsibility_assignments (migration 13).
     'responsibility:assign',
+    // UOS_Final.docx audit (12 Sep 2026) §6.4. Route-level only — both
+    // roles may open the screen, but delegations/service.ts's own
+    // role-level check is what actually stops a Warden from delegating
+    // 'head_warden' authority to anyone; a Warden delegating their own
+    // 'warden' authority to a peer covering their leave is the exact
+    // everyday case this exists for.
+    'delegation:manage',
     // BR §8: Warden/Head Warden decide gate pass/leave and record actual
     // gate movement (no live Gate integration — see movement_requests
     // migration's own comment).

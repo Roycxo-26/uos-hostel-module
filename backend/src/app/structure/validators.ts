@@ -27,7 +27,7 @@ export const createHostelSchema = z
     accessibilityPolicy: z.string().trim().max(2000).optional(),
   })
   .refine((v) => !v.effectiveFrom || !v.effectiveTo || v.effectiveTo >= v.effectiveFrom, {
-    message: 'effectiveTo must be on or after effectiveFrom',
+    message: 'The "effective to" date must be on or after the "effective from" date.',
     path: ['effectiveTo'],
   });
 
@@ -39,7 +39,7 @@ export const updateHostelSchema = createHostelSchema
     status: lifecycleStatus.optional(),
   })
   .refine((v) => !v.effectiveFrom || !v.effectiveTo || v.effectiveTo >= v.effectiveFrom, {
-    message: 'effectiveTo must be on or after effectiveFrom',
+    message: 'The "effective to" date must be on or after the "effective from" date.',
     path: ['effectiveTo'],
   });
 

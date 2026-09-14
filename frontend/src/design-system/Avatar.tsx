@@ -35,7 +35,7 @@ export function Avatar({
   return (
     <span
       className={[
-        'inline-flex shrink-0 items-center justify-center bg-accent-subtle font-semibold text-accent',
+        'inline-flex shrink-0 select-none items-center justify-center bg-accent-subtle font-semibold text-accent',
         shape === 'circle' ? 'rounded-full' : 'rounded-lg',
         SIZE_CLASSES[size],
         className,

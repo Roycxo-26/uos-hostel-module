@@ -105,7 +105,7 @@ export async function decidePrivilegeChange(user: AuthUser, id: string, input: z
   if (before.status !== 'requested') throw new ConflictError(`Cannot decide a privilege change in status '${before.status}'`);
 
   const requiredRole = requiredRoleFor(before.privilege_type, before.action);
-  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id, entityType: 'resident_privilege_change' });
 
   if (input.decision === 'approved') {
     const currentlyActive = await repo.findActiveForStudentAndType(before.student_id, before.privilege_type);
@@ -188,7 +188,7 @@ export async function reversePrivilegeChange(user: AuthUser, id: string, input: 
   if (target.superseded_by) throw new ConflictError('This privilege change has already been superseded');
 
   const requiredRole = requiredRoleFor(target.privilege_type, target.action);
-  const resolution = await authorizeApproval(user, { requiredRole, campusId: target.campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole, campusId: target.campus_id, entityType: 'resident_privilege_change' });
 
   const reversal = await repo.create({
     org_id: target.org_id,

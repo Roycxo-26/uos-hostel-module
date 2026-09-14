@@ -33,13 +33,25 @@ export const approveEntrySchema = z.object({
   consentGiven: z.boolean().optional(),
 });
 
+// Frontline/offline support (12 Sep 2026) — same stopgap "it's just a URL
+// field" pattern applications/validators.ts's own comment explains, sized
+// for a real embedded photo instead of a short link: a compressed camera
+// photo becomes a data: URI client-side (frontend/src/offline/
+// compressImage.ts keeps it well under this cap), which a plain
+// `.url().max(2000)` — sized for an actual short URL — would reject
+// outright. `.url()` itself already accepts a `data:` URI (the WHATWG URL
+// constructor does), so only the length cap needed to change.
+const photoDataUrlSchema = z.string().trim().url().max(500_000);
+
 export const recordEntrySchema = z.object({
   enteredBy: z.string().uuid().optional(),
   evidenceNotes: z.string().trim().max(1000).optional(),
+  entryPhotoUrl: photoDataUrlSchema.optional(),
 });
 
 export const recordExitSchema = z.object({
   evidenceNotes: z.string().trim().max(1000).optional(),
+  exitPhotoUrl: photoDataUrlSchema.optional(),
 });
 
 export const cancelEntrySchema = z.object({

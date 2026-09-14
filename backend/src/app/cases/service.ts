@@ -217,8 +217,13 @@ export async function listResidentDirectory(_user: AuthUser) {
   return repo.listResidentDirectory();
 }
 
-/** Staff-only (mirrors triageCase's own gate) — who a case can actually be
- * assigned to, not the general resident directory above. */
+/** Any authenticated user can list this now (route.ts) — no longer
+ * staff-only. It started as "who a case can actually be assigned to"
+ * (staff-only made sense there), but Grievances.tsx's resident-facing
+ * "Raise a grievance" form reuses it too, for "which staff member does
+ * this concern" — a Student needs to read this list just as much as a
+ * Warden assigning a case. Just names/roles, same sensitivity as the
+ * already-ungated resident directory above. */
 export async function listCaseStaffDirectory(user: AuthUser) {
   return repo.listCaseStaffDirectory(resolveCampusId(user));
 }
@@ -441,7 +446,7 @@ export async function decideCase(user: AuthUser, id: string, input: z.infer<type
   }
   await assertCanMutate(user, before);
 
-  const resolution = await authorizeApproval(user, { requiredRole: 'head_warden', campusId: before.campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole: 'head_warden', campusId: before.campus_id, entityType: 'case' });
 
   const after = await repo.update(id, {
     status: 'decided',

@@ -69,6 +69,15 @@ export async function addGuardian(input: { name: string; relationship: string; m
   return guardian;
 }
 
+// Real gap found live via SELF-TEST-GUIDE.md Batch 23 — staff had no way
+// to discover a guardian to verify at all; nothing on the page called
+// this even though it was fully built.
+export async function listAllGuardians(filters?: { verified?: boolean }) {
+  const qs = filters?.verified !== undefined ? `?verified=${filters.verified}` : '';
+  const { guardians } = await api.get<{ guardians: ResidentGuardian[] }>(`/movements/guardians/all${qs}`);
+  return guardians;
+}
+
 export async function verifyGuardian(guardianId: string) {
   const { guardian } = await api.post<{ guardian: ResidentGuardian }>(`/movements/guardians/${guardianId}/verify`, {});
   return guardian;

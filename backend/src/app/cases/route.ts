@@ -14,7 +14,15 @@ export function casesRouter(): Router {
   // this literal path as a caseId param match, same routing-order pitfall
   // as any other static-vs-param route pair in this codebase.
   r.get('/resident-directory', controller.listResidentDirectory);
-  r.get('/staff-directory', canManage, controller.listCaseStaffDirectory);
+  // Was staff-only (canManage) — real bug, found live via SELF-TEST-GUIDE.md
+  // Batch 20: Grievances.tsx's "Raise a grievance" form (resident-facing,
+  // any Student) reuses this same endpoint to populate its "which staff
+  // member does this concern" picker, and a 403 there just silently leaves
+  // the dropdown empty (the fetch has no .catch — see that component). Just
+  // names/roles of Warden/Head Warden, same sensitivity as the already-
+  // ungated resident-directory above; assignment/triage/decide actions
+  // themselves stay canManage-gated below, only the listing opened up.
+  r.get('/staff-directory', controller.listCaseStaffDirectory);
   r.get('/:caseId', controller.getCase);
 
   r.post('/:caseId/triage', canManage, controller.triageCase);

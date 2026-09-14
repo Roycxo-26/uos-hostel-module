@@ -278,7 +278,7 @@ function RequestEntrySheet({ onClose, onRequested }: { onClose: () => void; onRe
 }
 
 function EntryDetailSheet({
-  entry,
+  entry: initialEntry,
   roomLabel,
   onClose,
   onChanged,
@@ -288,17 +288,25 @@ function EntryDetailSheet({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  // Approve -> Record entry -> Record exit is one continuous workflow a
+  // Warden should be able to click straight through — every one of these
+  // actions already returns the updated entry, so there's no reason this
+  // panel needs to close and force a re-click from the list after each
+  // single step (the bug this replaces: it used to call onClose() here
+  // every time). Holding the entry in local state, seeded from the prop,
+  // and swapping it for whatever each action call returns is what lets
+  // the panel update itself in place instead.
+  const [entry, setEntry] = useState(initialEntry);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
 
-  async function run(action: string, fn: () => Promise<unknown>) {
+  async function run(action: string, fn: () => Promise<RoomEntry>) {
     setSubmitting(action);
     setError(null);
     try {
-      await fn();
+      setEntry(await fn());
       onChanged();
-      onClose();
     } catch (err) {
       setError(errorMessage(err));
     } finally {

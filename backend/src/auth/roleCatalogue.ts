@@ -59,6 +59,11 @@ const WARDEN_PERMISSIONS: readonly string[] = [
   'checkin:create',
   'transfer:decide',
   'responsibility:assign',
+  // UOS_Final.docx audit (12 Sep 2026) §6.4 — see seeds/001_hostel_
+  // permissions.ts's own comment on this one: route-level only, both
+  // roles may open the screen, service.ts's role-level check is what
+  // actually stops a Warden delegating 'head_warden' authority.
+  'delegation:manage',
   'movement:manage',
   'headcount:manage',
   'case:manage',

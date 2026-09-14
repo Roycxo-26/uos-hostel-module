@@ -845,6 +845,46 @@ export interface FinancialSummary extends FinanceBalances {
 // its own type (a genuinely separate role family, not merged with it).
 export type FinanceOfficerPrivilegeType = 'finance_officer';
 
+// UOS_Final.docx audit (12 Sep 2026) §6.4 — "let someone else act with my
+// approval authority while I'm away", with an instant-revoke and an
+// exclusions list. Distinct from the responsibility-assignment types
+// above: this delegates ROLE-LEVEL approval authority itself (what
+// utils/approvalResolution.ts's authorizeApproval checks), not a scoped
+// duty/responsibility.
+export type DelegatableRole = 'warden' | 'head_warden';
+
+// Kept in sync by hand with backend/src/utils/approvalResolution.ts's own
+// DELEGATABLE_ENTITY_TYPES — every entityType any module actually passes
+// to recordApprovalResolution.
+export const DELEGATABLE_ENTITY_TYPES = [
+  'case',
+  'checkout',
+  'closure_case',
+  'movement_extension_request',
+  'movement_request',
+  'resident_privilege_change',
+  'transfer_request',
+] as const;
+export type DelegatableEntityType = (typeof DELEGATABLE_ENTITY_TYPES)[number];
+
+export interface ApproverDelegation {
+  id: string;
+  campusId: string;
+  role: DelegatableRole;
+  delegateUserId: string;
+  effectiveFrom: string;
+  effectiveTo: string;
+  reason: string;
+  createdBy: string;
+  active: boolean;
+  exclusions: DelegatableEntityType[];
+  revokedAt: string | null;
+  revokedBy: string | null;
+  revokedReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // --- Admin (required @uos/auth endpoints) ---
 
 // Kept in sync with the real @uos/auth package's AdminUserRole (confirmed
@@ -970,6 +1010,9 @@ export interface RoomEntry {
   exitAt: string | null;
   workReference: string | null;
   evidenceNotes: string | null;
+  // Frontline/offline support (12 Sep 2026).
+  entryPhotoUrl: string | null;
+  exitPhotoUrl: string | null;
 }
 
 export type KeyScopeType = 'room' | 'floor' | 'block' | 'hostel';

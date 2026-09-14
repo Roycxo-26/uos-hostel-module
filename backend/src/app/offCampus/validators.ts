@@ -33,7 +33,7 @@ export const requestPlacementSchema = z
     contractReference: z.string().trim().max(500).optional(),
     paymentOwnerReference: z.string().trim().max(500).optional(),
   })
-  .refine((v) => v.endDate > v.startDate, { message: 'endDate must be after startDate', path: ['endDate'] });
+  .refine((v) => v.endDate > v.startDate, { message: 'The end date must be after the start date.', path: ['endDate'] });
 
 export const decidePlacementSchema = z.object({
   decision: z.enum(['approved', 'rejected']),

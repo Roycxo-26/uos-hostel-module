@@ -104,3 +104,59 @@ export async function findClosureBlock(bedId: string): Promise<{ blocked: boolea
     } case — new occupancy is blocked until it's resolved`,
   };
 }
+
+// Same "open" definition as findOpenCaseForHostel above — approved (not
+// yet started, but committed to), active_closure, and reopening_planned
+// all still need to go through completeClosureCase's own checklist gate,
+// not a direct status edit.
+const OPEN_CASE_STATUSES = ['approved', 'active_closure', 'reopening_planned'];
+
+/**
+ * Real gap found live via SELF-TEST-GUIDE.md Batch 22: this exact
+ * protection already existed for Hostel (updateHostel, D17.25 item 88 —
+ * "a Hostel cannot be reopened merely by changing active=true") but was
+ * never extended to Floor or Room when those two closure scope types were
+ * added — an incomplete rollout of an already-established, deliberate
+ * guard, not a missing feature. Same query shape as findClosureBlock
+ * above, just starting one or two joins higher (a floor/room id directly,
+ * not a bed id) since these two callers already have their own scope id
+ * in hand.
+ */
+export async function findFloorClosureBlock(floorId: string): Promise<{ blocked: boolean; reason?: string }> {
+  const row = await db('floors').join('blocks', 'blocks.id', 'floors.block_id').where('floors.id', floorId).select('blocks.hostel_id as hostel_id').first();
+  if (!row) return { blocked: false };
+
+  const openCase = await db('closure_cases')
+    .whereIn('status', OPEN_CASE_STATUSES)
+    .andWhere((qb) => qb.where({ scope_type: 'floor', scope_id: floorId }).orWhere({ scope_type: 'hostel', scope_id: row.hostel_id }))
+    .first();
+  if (!openCase) return { blocked: false };
+
+  return {
+    blocked: true,
+    reason: `Cannot change this floor's status directly — it has an open ${openCase.case_type === 'shutdown' ? 'shutdown' : 'mass relocation'} case (status '${openCase.status}'). Complete that case's reopening checklist instead.`,
+  };
+}
+
+export async function findRoomClosureBlock(roomId: string): Promise<{ blocked: boolean; reason?: string }> {
+  const row = await db('rooms')
+    .join('floors', 'floors.id', 'rooms.floor_id')
+    .join('blocks', 'blocks.id', 'floors.block_id')
+    .where('rooms.id', roomId)
+    .select('floors.id as floor_id', 'blocks.hostel_id as hostel_id')
+    .first();
+  if (!row) return { blocked: false };
+
+  const openCase = await db('closure_cases')
+    .whereIn('status', OPEN_CASE_STATUSES)
+    .andWhere((qb) =>
+      qb.where({ scope_type: 'room', scope_id: roomId }).orWhere({ scope_type: 'floor', scope_id: row.floor_id }).orWhere({ scope_type: 'hostel', scope_id: row.hostel_id })
+    )
+    .first();
+  if (!openCase) return { blocked: false };
+
+  return {
+    blocked: true,
+    reason: `Cannot change this room's status directly — it has an open ${openCase.case_type === 'shutdown' ? 'shutdown' : 'mass relocation'} case (status '${openCase.status}'). Complete that case's reopening checklist instead.`,
+  };
+}

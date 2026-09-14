@@ -35,8 +35,17 @@ export function listInspections(commonAreaId: string) {
   return db('sanitation_inspections').where({ common_area_id: commonAreaId }).orderBy('inspected_at', 'desc');
 }
 
+// Widened from `status = 'needs_reinspection'` only — real gap found while
+// building the Dashboard's "Common area problems" queue (the deferred idea
+// noted after Batch 19): a 'failed' inspection is just as much an open
+// problem as one explicitly flagged 'needs_reinspection' (see
+// recordInspection's own status logic in service.ts — 'failed' is a
+// distinct, separately-reachable outcome, not a state that always becomes
+// 'needs_reinspection'), so a plain 'needs_reinspection' filter was quietly
+// dropping every inspection that failed outright. This was also the only
+// caller of this query, and had no frontend caller of its own until now.
 export function listFailedInspectionsNeedingReinspection() {
-  return db('sanitation_inspections').where({ status: 'needs_reinspection' }).orderBy('inspected_at');
+  return db('sanitation_inspections').whereIn('status', ['failed', 'needs_reinspection']).orderBy('inspected_at');
 }
 
 // --- Utility outages (item 77) -------------------------------------------

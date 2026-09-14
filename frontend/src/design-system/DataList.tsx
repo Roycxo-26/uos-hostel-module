@@ -33,18 +33,18 @@ export function DataList<T extends { id: string }>({
   return (
     <>
       {/* Mobile: card list */}
-      <ul className="divide-y divide-slate-200 md:hidden">
+      <ul className="divide-y divide-border md:hidden">
         {rows.map((row) => (
           <li key={row.id}>
             <button
               type="button"
               disabled={!onRowClick}
               onClick={() => onRowClick?.(row)}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left disabled:cursor-default"
+              className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors disabled:cursor-default active:bg-muted"
             >
               <div className="min-w-0 flex-1 space-y-1">
-                <p className="truncate text-sm font-medium text-slate-900">{primaryCol?.render(row)}</p>
-                <dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
+                <p className="truncate text-sm font-medium text-foreground">{primaryCol?.render(row)}</p>
+                <dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                   {secondaryCols.map((col) => (
                     <div key={col.key} className="flex gap-1">
                       <dt className="font-medium text-slate-400">{col.header}:</dt>
@@ -53,17 +53,17 @@ export function DataList<T extends { id: string }>({
                   ))}
                 </dl>
               </div>
-              {onRowClick && <ChevronRightIcon className="shrink-0 text-slate-300" />}
+              {onRowClick && <ChevronRightIcon className="shrink-0 text-slate-300" size={18} />}
             </button>
           </li>
         ))}
       </ul>
 
       {/* Desktop: table */}
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-border bg-muted text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {columns.map((col) => (
                 <th key={col.key} className="px-5 py-2.5 font-medium">
                   {col.header}
@@ -71,12 +71,12 @@ export function DataList<T extends { id: string }>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {rows.map((row) => (
               <tr
                 key={row.id}
                 onClick={() => onRowClick?.(row)}
-                className={onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}
+                className={onRowClick ? 'cursor-pointer transition-colors hover:bg-muted' : ''}
               >
                 {columns.map((col) => (
                   <td key={col.key} className="px-5 py-3 text-slate-700">

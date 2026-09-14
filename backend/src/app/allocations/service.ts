@@ -28,6 +28,30 @@ function isUniqueViolation(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
 }
 
+/** Postgres attaches the name of the specific constraint that failed to a
+ * unique-violation error. Reading it here is what lets this give an honest
+ * answer instead of one generic message stretched over two genuinely
+ * different situations: a true race (two requests for the same bed, one
+ * loses) vs. this exact student already holding an active allocation
+ * elsewhere, discovered only now because there's no earlier check for it —
+ * that second case isn't a race at all, and saying "another request won"
+ * when nothing actually raced was actively misleading. */
+function describeUniqueViolation(err: unknown, fallback: string): string {
+  const constraint = typeof err === 'object' && err !== null ? (err as { constraint?: string }).constraint : undefined;
+  switch (constraint) {
+    case 'uq_one_active_allocation_per_bed':
+      return 'This bed was allocated to someone else a moment ago — pick a different bed.';
+    case 'uq_one_active_allocation_per_student':
+      return 'This student already has an active allocation on a different bed.';
+    case 'uq_one_pending_offer_per_bed':
+      return 'This bed already has a pending offer out — wait for it to be accepted, declined, or to expire.';
+    case 'uq_one_pending_offer_per_application':
+      return 'This application already has a pending offer — wait for it to be accepted, declined, or to expire.';
+    default:
+      return fallback;
+  }
+}
+
 /**
  * flow.md §7 UX flow / HST-WF-03: "Warden Locks & Assigns Bed" is one step
  * from the reader's point of view, so this performs propose -> lock ->
@@ -113,7 +137,7 @@ export async function createAllocation(user: AuthUser, input: z.infer<typeof cre
     return allocation;
   } catch (err) {
     if (isUniqueViolation(err)) {
-      throw new ConflictError('This bed or student already has an active allocation — another request won the race');
+      throw new ConflictError(describeUniqueViolation(err, 'This bed or student already has an active allocation.'));
     }
     throw err;
   }
@@ -493,7 +517,7 @@ export async function createOffer(user: AuthUser, input: z.infer<typeof createOf
     return finalOffer;
   } catch (err) {
     if (isUniqueViolation(err)) {
-      throw new ConflictError('This bed or application already has a pending offer — another request won the race');
+      throw new ConflictError(describeUniqueViolation(err, 'This bed or application already has a pending offer.'));
     }
     throw err;
   }
@@ -626,7 +650,7 @@ export async function acceptOffer(user: AuthUser, offerId: string) {
     return { offer: finalOffer, allocation };
   } catch (err) {
     if (isUniqueViolation(err)) {
-      throw new ConflictError('This bed or student already has an active allocation — another request won the race');
+      throw new ConflictError(describeUniqueViolation(err, 'This bed or student already has an active allocation.'));
     }
     throw err;
   }

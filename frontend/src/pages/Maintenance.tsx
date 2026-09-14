@@ -212,6 +212,9 @@ function TicketsTab({
                     <span className="font-medium text-slate-800">{CATEGORY_LABELS[t.category]}</span>
                     <StatusPill status={t.status} />
                     {t.isEmergency && <span className="text-xs text-rose-600">Emergency</span>}
+                    {t.dueDate && new Date(t.dueDate) < new Date() && !['resolved', 'closed', 'cancelled'].includes(t.status) && (
+                      <span className="text-xs font-medium text-amber-600">Overdue</span>
+                    )}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
                     {isStaff && `${residentNames[t.raisedBy] ?? t.raisedBy.slice(0, 8)} — `}
@@ -414,6 +417,18 @@ function TicketDetailSheet({
         {detail.verificationReason && <p className="text-xs text-slate-500">Verification: {detail.verificationReason}</p>}
         {detail.assignedToUserId && <p className="text-xs text-slate-500">Assigned to {residentNames[detail.assignedToUserId] ?? detail.assignedToUserId.slice(0, 8)}</p>}
         {detail.assignedToProvider && <p className="text-xs text-slate-500">Provider: {detail.assignedToProvider}</p>}
+        {/* Real gap, found via the UOS_Final.docx audit (12 Sep 2026) —
+            "owner + next action + due date should all be visible together"
+            — this field was set on assignTicket (maintenance/service.ts)
+            and stored the whole time, just never rendered anywhere on
+            screen. Overdue gets a warning colour, same visual language as
+            the rest of the app's tone="warning" usage. */}
+        {detail.dueDate && (
+          <p className={`text-xs ${new Date(detail.dueDate) < new Date() && !['resolved', 'closed', 'cancelled'].includes(detail.status) ? 'font-medium text-amber-600' : 'text-slate-500'}`}>
+            Due {new Date(detail.dueDate).toLocaleDateString()}
+            {new Date(detail.dueDate) < new Date() && !['resolved', 'closed', 'cancelled'].includes(detail.status) && ' — overdue'}
+          </p>
+        )}
         {detail.resolutionNotes && <p className="text-xs text-slate-500">Resolution: {detail.resolutionNotes}</p>}
         {detail.reopenReason && <p className="text-xs text-amber-600">Reopened: {detail.reopenReason}</p>}
 

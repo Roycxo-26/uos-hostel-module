@@ -11,6 +11,10 @@ export function movementsRouter(): Router {
   // itself (self-service submit, staff-only decide).
   r.post('/guardians', controller.addGuardian);
   r.get('/guardians', controller.listMyGuardians);
+  // Real gap found live via SELF-TEST-GUIDE.md Batch 23: staff had no way
+  // to discover a guardian to verify at all — must be registered before
+  // '/guardians/:guardianId' or Express would swallow 'all' as a param.
+  r.get('/guardians/all', canManage, controller.listAllGuardians);
   r.get('/guardians/:guardianId', controller.getGuardian); // self-or-staff, validated in the service
   r.post('/guardians/:guardianId/verify', canManage, controller.verifyGuardian);
 

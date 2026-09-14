@@ -241,7 +241,11 @@ function AreaDetailSheet({ area, onClose, onChanged }: { area: CommonArea; onClo
       <div className="space-y-4">
         {error && <Alert>{error}</Alert>}
         <p className="text-sm text-slate-600">
-          <StatusPill status={area.status} /> — {AREA_TYPE_LABELS[area.areaType]}
+          {/* full?.status, not area.status — same stale-prop issue fixed in
+              OutageDetailSheet: area.status stays frozen at whatever it was
+              when the sheet opened, so the pill needs the reloaded copy to
+              actually reflect a status change without closing and reopening. */}
+          <StatusPill status={full?.status ?? area.status} /> — {AREA_TYPE_LABELS[area.areaType]}
         </p>
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => void run('operational', () => commonAreasApi.updateCommonAreaStatus(area.id, 'operational'))} disabled={Boolean(submitting)}>
@@ -483,14 +487,22 @@ function OutageDetailSheet({ outage, onClose, onChanged }: { outage: UtilityOuta
     }
   }
 
+  // The refreshed record from reload() — not the `outage` prop, which stays
+  // frozen at whatever it was when the sheet first opened. Gating the
+  // buttons below on the stale prop instead of this was a real bug: the
+  // history list (full.updates) already read from here and updated fine,
+  // but the buttons never advanced to the next stage until the sheet was
+  // closed and reopened, re-fetching a fresh `outage` prop from the list.
+  const current = full ?? outage;
+
   return (
     <Sheet open onClose={onClose} title={OUTAGE_TYPE_LABELS[outage.outageType]}>
       <div className="space-y-4">
         {error && <Alert>{error}</Alert>}
         <p className="text-sm text-slate-600">
-          <StatusPill status={outage.status} /> — {outage.affectedPopulationCount ?? 0} resident(s) affected
+          <StatusPill status={current.status} /> — {current.affectedPopulationCount ?? 0} resident(s) affected
         </p>
-        {outage.status === 'notified' && (
+        {current.status === 'notified' && (
           <>
             <FieldWrapper label="Update ETA" htmlFor="od-eta">
               <div className="flex gap-2">
@@ -505,7 +517,7 @@ function OutageDetailSheet({ outage, onClose, onChanged }: { outage: UtilityOuta
             </Button>
           </>
         )}
-        {outage.status === 'restored' && (
+        {current.status === 'restored' && (
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" onClick={() => void run('verify', () => commonAreasApi.verifyOutage(outage.id))} disabled={Boolean(submitting)}>
               Verify restoration
@@ -515,7 +527,7 @@ function OutageDetailSheet({ outage, onClose, onChanged }: { outage: UtilityOuta
             </Button>
           </div>
         )}
-        {outage.status === 'verified' && (
+        {current.status === 'verified' && (
           <Button fullWidth onClick={() => void run('close', () => commonAreasApi.closeOutage(outage.id))} disabled={Boolean(submitting)}>
             Close
           </Button>
@@ -663,19 +675,19 @@ function ReportPestFindingSheet({ onClose, onReported }: { onClose: () => void; 
   );
 }
 
-function PestDetailSheet({ treatment, onClose, onChanged }: { treatment: PestControlTreatment; onClose: () => void; onChanged: () => void }) {
+function PestDetailSheet({ treatment: initialTreatment, onClose, onChanged }: { treatment: PestControlTreatment; onClose: () => void; onChanged: () => void }) {
+  const [treatment, setTreatment] = useState(initialTreatment);
   const [scheduledAt, setScheduledAt] = useState('');
   const [result, setResult] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
 
-  async function run(action: string, fn: () => Promise<unknown>) {
+  async function run(action: string, fn: () => Promise<PestControlTreatment>) {
     setSubmitting(action);
     setError(null);
     try {
-      await fn();
+      setTreatment(await fn());
       onChanged();
-      onClose();
     } catch (err) {
       setError(errorMessage(err));
     } finally {

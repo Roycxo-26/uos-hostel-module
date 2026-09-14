@@ -66,7 +66,7 @@ export async function requestTransfer(user: AuthUser, input: z.infer<typeof requ
   // session).
   if (input.destinationCampusId) {
     if (input.destinationCampusId === allocation.campus_id) {
-      throw new ValidationError('destinationCampusId must be a different campus from the resident\'s current one — this is a same-campus transfer otherwise');
+      throw new ValidationError('The destination campus must be different from the resident\'s current campus — otherwise this is just a same-campus transfer.');
     }
     const destination = await db('shadow_campuses').where({ campus_id: input.destinationCampusId }).first('campus_id');
     if (!destination) throw new NotFoundError('Destination campus');
@@ -155,7 +155,7 @@ export async function decideTransfer(user: AuthUser, transferId: string, input: 
   if (before.status !== 'requested') throw new ConflictError(`Cannot decide a transfer in status '${before.status}'`);
 
   const requiredRole = before.transfer_type === 'emergency' ? 'head_warden' : 'warden';
-  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole, campusId: before.campus_id, entityType: 'transfer_request' });
 
   if (input.decision === 'approved') {
     const bed = await db('beds').where({ id: input.newBedId }).first();
@@ -230,7 +230,7 @@ export async function acceptDestinationTransfer(user: AuthUser, transferId: stri
   if (before.status !== 'approved') throw new ConflictError(`Cannot accept a transfer in status '${before.status}'`);
   if (before.destination_accepted_at) throw new ConflictError('This transfer has already been accepted by the destination campus');
 
-  const resolution = await authorizeApproval(user, { requiredRole: 'warden', campusId: before.destination_campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole: 'warden', campusId: before.destination_campus_id, entityType: 'transfer_request' });
 
   const after = await repo.update(transferId, {
     destination_accepted_by: user.sub,

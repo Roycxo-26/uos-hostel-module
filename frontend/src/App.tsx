@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './layouts/AppShell';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TenantSettingsProvider } from './context/TenantSettingsContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { TooltipProvider } from './design-system';
 import { Allocations } from './pages/Allocations';
 import { Applications } from './pages/Applications';
 import { SsoCallback } from './pages/SsoCallback';
@@ -24,6 +26,7 @@ import { Mess } from './pages/Mess';
 import { Movement } from './pages/Movement';
 import { CommonAreas } from './pages/CommonAreas';
 import { DutyRoster } from './pages/DutyRoster';
+import { Frontline } from './pages/Frontline';
 import { Grievances } from './pages/Grievances';
 import { OccupancyVerification } from './pages/OccupancyVerification';
 import { PrivilegeChanges } from './pages/PrivilegeChanges';
@@ -99,6 +102,14 @@ function AuthenticatedApp() {
             element={
               <StaffOnly>
                 <DutyRoster />
+              </StaffOnly>
+            }
+          />
+          <Route
+            path="/frontline"
+            element={
+              <StaffOnly>
+                <Frontline />
               </StaffOnly>
             }
           />
@@ -200,10 +211,14 @@ function Root() {
 
 export function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Root />
-      </AuthProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <TooltipProvider delayDuration={300}>
+        <BrowserRouter>
+          <AuthProvider>
+            <Root />
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   );
 }

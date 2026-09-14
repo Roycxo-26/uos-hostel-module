@@ -245,6 +245,16 @@ export async function updateFloor(user: AuthUser, floorId: string, input: z.infe
   // different column.
   await recordCodeAliasIfRenamed(user, before.campus_id, 'floor', floorId, before.number, input.number);
 
+  // Same guard updateHostel already applies for the hostel level — real
+  // gap found live via SELF-TEST-GUIDE.md Batch 22, never extended to
+  // Floor. A direct status edit here would otherwise bypass the whole
+  // reopening-checklist gate closures/service.ts's completeClosureCase
+  // enforces.
+  if (input.status !== undefined && input.status !== before.status) {
+    const block = await closuresRepo.findFloorClosureBlock(floorId);
+    if (block.blocked) throw new ConflictError(block.reason ?? 'This floor has an open closure case');
+  }
+
   try {
     const after = await repo.updateFloor(floorId, {
       ...(input.number !== undefined && { number: input.number }),
@@ -364,6 +374,17 @@ export async function updateRoom(user: AuthUser, roomId: string, input: z.infer<
 export async function updateRoomStatus(user: AuthUser, roomId: string, input: z.infer<typeof updateRoomStatusSchema>) {
   const before = await repo.findRoom(roomId);
   if (!before) throw new NotFoundError('Room');
+
+  // Same guard updateHostel/updateFloor already apply — real gap found
+  // live via SELF-TEST-GUIDE.md Batch 22, never extended to Room. Only
+  // guards the "reopen via direct edit" direction, same as the other two
+  // levels — suspending a room for an unrelated reason (safety/
+  // maintenance) while it happens to also sit inside someone else's
+  // closure isn't this guard's concern.
+  if (input.status === 'active' && before.status !== 'active') {
+    const block = await closuresRepo.findRoomClosureBlock(roomId);
+    if (block.blocked) throw new ConflictError(block.reason ?? 'This room has an open closure case');
+  }
 
   if (input.status !== 'active' && !input.reason) {
     throw new ConflictError('A reason is required when moving a room out of Active status');

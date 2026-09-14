@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import * as allocationsApi from '../api/allocations';
 import * as applicationsApi from '../api/applications';
 import type { AuditEntry } from '../api/audit';
@@ -40,9 +40,32 @@ function useResidentNames(): Record<string, string> {
   return names;
 }
 
+// UOS_Final.docx audit (12 Sep 2026) — "every audit/history view should
+// show who/under what authority/before-after/why/evidence". The backend
+// (utils/audit.ts's recordAudit) already captures all of this on every
+// call site — the gap was only ever that this screen never rendered it.
+// Rather than dump two full JSON blobs per row (unreadable for most
+// entries, which carry the whole record), this shows only the fields that
+// actually changed between before and after — the part a person deciding
+// "was this a reasonable change" actually needs.
+function diffFields(before: unknown, after: unknown): { field: string; before: string; after: string }[] {
+  const b = (before && typeof before === 'object' ? (before as Record<string, unknown>) : {}) ?? {};
+  const a = (after && typeof after === 'object' ? (after as Record<string, unknown>) : {}) ?? {};
+  const keys = new Set([...Object.keys(b), ...Object.keys(a)]);
+  const format = (v: unknown) => (v === undefined ? '—' : v === null ? 'null' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const out: { field: string; before: string; after: string }[] = [];
+  for (const key of keys) {
+    const bv = format(b[key]);
+    const av = format(a[key]);
+    if (bv !== av) out.push({ field: key, before: bv, after: av });
+  }
+  return out;
+}
+
 export function Reports() {
   const residentNames = useResidentNames();
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [occupancy, setOccupancy] = useState({ hostels: 0, capacity: 0, activeResidents: 0, awaitingCheckIn: 0 });
   const [applicationCounts, setApplicationCounts] = useState<Record<string, number>>({});
   const [movementCounts, setMovementCounts] = useState<Record<string, number>>({});
@@ -157,18 +180,50 @@ export function Reports() {
                   <th className="px-4 py-2.5">Action</th>
                   <th className="px-4 py-2.5">Entity</th>
                   <th className="px-4 py-2.5">Actor</th>
+                  <th className="px-4 py-2.5">Reason</th>
                   <th className="px-4 py-2.5">When</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {auditEntries.map((e) => (
-                  <tr key={e.id}>
-                    <td className="px-4 py-2.5 font-mono text-xs text-slate-700">{e.action}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{e.entityType}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500">{e.actorUserId ? (residentNames[e.actorUserId] ?? e.actorUserId.slice(0, 8)) : 'system'}</td>
-                    <td className="px-4 py-2.5 text-slate-500">{new Date(e.createdAt).toLocaleString()}</td>
-                  </tr>
-                ))}
+                {auditEntries.map((e) => {
+                  const changes = diffFields(e.beforeState, e.afterState);
+                  const expanded = expandedId === e.id;
+                  return (
+                    <Fragment key={e.id}>
+                      <tr
+                        className={changes.length > 0 ? 'cursor-pointer hover:bg-slate-50' : undefined}
+                        onClick={() => changes.length > 0 && setExpandedId(expanded ? null : e.id)}
+                      >
+                        <td className="px-4 py-2.5 font-mono text-xs text-slate-700">
+                          {e.action}
+                          {changes.length > 0 && <span className="ml-1.5 text-slate-400">{expanded ? '▾' : '▸'}</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-600">{e.entityType}</td>
+                        <td className="px-4 py-2.5 text-xs text-slate-500">{e.actorUserId ? (residentNames[e.actorUserId] ?? e.actorUserId.slice(0, 8)) : 'system'}</td>
+                        <td className="max-w-xs truncate px-4 py-2.5 text-xs text-slate-500">{e.reason ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-slate-500">{new Date(e.createdAt).toLocaleString()}</td>
+                      </tr>
+                      {expanded && (
+                        <tr>
+                          <td colSpan={5} className="bg-slate-50 px-4 py-3">
+                            <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">What changed</p>
+                            <table className="w-full text-xs">
+                              <tbody className="divide-y divide-slate-200">
+                                {changes.map((c) => (
+                                  <tr key={c.field}>
+                                    <td className="py-1 pr-3 font-mono text-slate-500">{c.field}</td>
+                                    <td className="py-1 pr-3 text-rose-600 line-through">{c.before}</td>
+                                    <td className="py-1 text-emerald-700">{c.after}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

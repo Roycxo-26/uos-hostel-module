@@ -13,7 +13,14 @@ export function commonAreasRouter(): Router {
   r.get('/inspections/pending-reinspection', canManage, controller.listPendingReinspections);
 
   r.post('/areas', canManage, controller.createCommonArea);
-  r.get('/areas', canManage, controller.listCommonAreas);
+  // Real gap found live via SELF-TEST-GUIDE.md Batch 23 (found while
+  // testing a different page): this list was staff-only, but Batch 30's
+  // Residence Life page — resident-facing, "which facility can I book" —
+  // needs it too, just names/types/status, nothing staff-sensitive. Same
+  // shape as cases/route.ts's own staff-directory fix. getCommonArea
+  // right below stays staff-only — it also returns full inspection
+  // history, which a resident has no reason to see.
+  r.get('/areas', controller.listCommonAreas);
   r.get('/areas/:areaId', canManage, controller.getCommonArea);
   r.patch('/areas/:areaId/status', canManage, controller.updateCommonAreaStatus);
 

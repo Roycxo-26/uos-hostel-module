@@ -61,7 +61,7 @@ export const decideCaseSchema = z
     followUpDueAt: z.string().datetime().optional(),
   })
   .refine((v) => v.decisionOutcome !== 'support_plan' || Boolean(v.followUpDueAt), {
-    message: 'followUpDueAt is required when decisionOutcome is "support_plan"',
+    message: 'A follow-up due date is required when the outcome is "Support plan."',
     path: ['followUpDueAt'],
   });
 

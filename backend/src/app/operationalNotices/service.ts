@@ -5,7 +5,8 @@ import { db } from '../../db';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../middlewares/errorHandler';
 import { redis } from '../../redis';
 import { recordAudit } from '../../utils/audit';
-import * as dutyRepo from '../responsibilities/repository';
+import { notify } from '../../utils/notify';
+import { resolveDutyAuthority } from '../responsibilities/service';
 import * as repo from './repository';
 import type { publishNoticeSchema } from './validators';
 
@@ -51,6 +52,11 @@ export async function publishNotice(user: AuthUser, input: z.infer<typeof publis
     if (old) await repo.updateNotice(old.id, { superseded_by: notice.id });
   }
 
+  // Real bug, found live via SELF-TEST-GUIDE.md Batch 21: this loop
+  // created the "delivered" acknowledgement row for each resident, but
+  // never actually told them anything happened — a resident had no way to
+  // find out a notice existed short of manually checking, and (until the
+  // Dashboard fix alongside this one) nowhere in the UI to even look.
   const occupants = await repo.listOccupantsInScope(input.scopeType, input.scopeId);
   for (const occupant of occupants) {
     await repo.createAcknowledgement({
@@ -58,6 +64,15 @@ export async function publishNotice(user: AuthUser, input: z.infer<typeof publis
       campus_id: scope.campus_id,
       notice_id: notice.id,
       student_id: occupant.student_id,
+    });
+    await notify({
+      orgId: user.org_id,
+      campusId: scope.campus_id,
+      userId: occupant.student_id,
+      type: 'operational_notice.published',
+      title: input.severity === 'critical' ? `Critical notice: ${input.title}` : input.title,
+      body: input.body,
+      link: '/dashboard',
     });
   }
 
@@ -124,10 +139,18 @@ export async function getResidentEmergencyCard(user: AuthUser, studentId: string
   const occupancy = await repo.findCurrentOccupancy(studentId);
   const movement = await repo.findCurrentMovement(studentId);
 
+  // Real bug, found live via SELF-TEST-GUIDE.md Batch 21: this used to
+  // call findActiveHolder directly, a strict "currently-active primary
+  // only" lookup — it missed the substitute/Head-Warden-escalation steps
+  // resolveDutyAuthority's own ladder (see responsibilities/service.ts)
+  // already handles correctly, tested and confirmed working on the Duty
+  // Roster's own "Coverage right now" panel. This card is supposed to show
+  // "the resolved Duty Warden contact" — it needs the same resolution,
+  // not a cruder one-step version of it.
   let dutyWarden = null;
   if (occupancy) {
-    const holder = await dutyRepo.findActiveHolder('duty_warden', 'hostel', occupancy.hostel_id);
-    dutyWarden = holder?.assignee_user_id ?? null;
+    const resolution = await resolveDutyAuthority(user, 'duty_warden', 'hostel', occupancy.hostel_id);
+    dutyWarden = resolution.resolvedUserId;
   }
 
   return {

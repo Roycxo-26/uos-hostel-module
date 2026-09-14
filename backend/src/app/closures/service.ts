@@ -89,7 +89,7 @@ async function setScopeStatus(
 export async function createClosureCase(user: AuthUser, input: z.infer<typeof createClosureCaseSchema>) {
   const scope = await resolveScope(input.scopeType, input.scopeId);
   if (input.scopeType !== 'hostel' && scope.hostelId !== input.hostelId) {
-    throw new ValidationError('hostelId does not match the hostel that owns this scope');
+    throw new ValidationError('The selected hostel does not match the hostel that owns this room or floor.');
   }
 
   const row = await repo.createCase({
@@ -133,7 +133,7 @@ export async function decideClosureCase(user: AuthUser, caseId: string, input: z
   if (!before) throw new NotFoundError('Closure case');
   if (before.status !== 'proposed') throw new ConflictError(`Cannot decide a closure case in status '${before.status}'`);
 
-  const resolution = await authorizeApproval(user, { requiredRole: 'head_warden', campusId: before.campus_id });
+  const resolution = await authorizeApproval(user, { requiredRole: 'head_warden', campusId: before.campus_id, entityType: 'closure_case' });
 
   const after = await repo.updateCase(caseId, {
     status: input.decision,
@@ -276,7 +276,7 @@ export async function resolveImpact(user: AuthUser, impactId: string, input: z.i
   let newAllocationId: string | null = null;
 
   if (input.outcome === 'relocated') {
-    if (!input.destinationBedId) throw new ValidationError('destinationBedId is required when outcome is "relocated"');
+    if (!input.destinationBedId) throw new ValidationError('Please choose a destination bed — it is required when the outcome is "Relocated."');
     const destBed = await db('beds').where({ id: input.destinationBedId }).first();
     if (!destBed) throw new NotFoundError('Destination bed');
     if (destBed.status !== 'available') throw new ConflictError(`Destination bed is '${destBed.status}', not available`);
@@ -459,6 +459,24 @@ export async function getClosureCase(id: string) {
   if (!closureCase) throw new NotFoundError('Closure case');
   const impacts = await repo.listImpacts(id);
   return { ...closureCase, impacts };
+}
+
+/**
+ * UOS_Final.docx audit (12 Sep 2026) §"approval screens should show what
+ * will change before you approve" — real gap found checking this: a Head
+ * Warden deciding a 'proposed' case had no way to see who it would affect.
+ * The real resident list only ever got computed inside startClosureCase,
+ * AFTER approval already happened — by definition too late for the
+ * decision itself to be informed by it. This is the same
+ * headcountRepo.residentsInScope query startClosureCase uses, called
+ * read-only (no impact rows written) so it's safe to call before a
+ * decision exists at all, not just before 'approved'.
+ */
+export async function previewImpact(caseId: string) {
+  const closureCase = await repo.findCaseById(caseId);
+  if (!closureCase) throw new NotFoundError('Closure case');
+  const residents = await headcountRepo.residentsInScope(closureCase.scope_type, closureCase.scope_id);
+  return { studentIds: residents.map((r) => r.student_id) };
 }
 
 export async function listClosureCases(filters: { hostelId?: string; status?: string }) {

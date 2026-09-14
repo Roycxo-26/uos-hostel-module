@@ -36,6 +36,16 @@ export async function updateCommonAreaStatus(id: string, status: 'operational' |
 
 // --- Sanitation inspections ---
 
+// Real gap found while building the Dashboard's "Common area problems"
+// queue — the backend route (`GET /inspections/pending-reinspection`)
+// already existed and worked, but no page anywhere in the app ever called
+// it. Same bug pattern as verifyGuardian/publishPolicyVersion earlier in
+// this project: backend built, never wired to any screen.
+export async function listPendingReinspections() {
+  const { inspections } = await api.get<{ inspections: SanitationInspection[] }>('/common-areas/inspections/pending-reinspection');
+  return inspections;
+}
+
 export async function recordInspection(input: {
   commonAreaId: string;
   cleanlinessScore: number;

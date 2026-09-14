@@ -146,6 +146,7 @@ export async function recordEntry(user: AuthUser, entryId: string, input: z.infe
     entered_by: input.enteredBy ?? user.sub,
     entry_at: db.fn.now(),
     ...(input.evidenceNotes !== undefined && { evidence_notes: input.evidenceNotes }),
+    ...(input.entryPhotoUrl !== undefined && { entry_photo_url: input.entryPhotoUrl }),
   });
   await recordAudit({
     orgId: user.org_id,
@@ -169,6 +170,7 @@ export async function recordExit(user: AuthUser, entryId: string, input: z.infer
     status: 'completed',
     exit_at: db.fn.now(),
     ...(input.evidenceNotes !== undefined && { evidence_notes: input.evidenceNotes }),
+    ...(input.exitPhotoUrl !== undefined && { exit_photo_url: input.exitPhotoUrl }),
   });
   await recordAudit({
     orgId: user.org_id,

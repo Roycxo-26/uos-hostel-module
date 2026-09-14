@@ -363,8 +363,19 @@ export async function resolveDutyAuthority(
   if (holder?.assignee_user_id) {
     return { privilegeType, resolvedUserId: holder.assignee_user_id, resolvedVia: 'primary' };
   }
-  if (holder?.substitute_user_id) {
-    return { privilegeType, resolvedUserId: holder.substitute_user_id, resolvedVia: 'substitute' };
+
+  // Real bug, found live via SELF-TEST-GUIDE.md Batch 21: `holder` above is
+  // strictly the currently-active row, which — whenever it exists at all —
+  // always has assignee_user_id set, so the old code here could never
+  // actually be reached; 'substitute' was dead code. The substitute lives
+  // on the SAME row as the primary and was lost the instant that row left
+  // 'active' (revoked or lapsed) — exactly the moment it's supposed to
+  // matter. Fall back to the most recent assignment row for this
+  // privilege+scope regardless of status, so a named substitute still
+  // covers once the primary's own assignment has ended.
+  const latest = await repo.findLatestHolder(privilegeType, scopeType, scopeId);
+  if (latest?.substitute_user_id) {
+    return { privilegeType, resolvedUserId: latest.substitute_user_id, resolvedVia: 'substitute' };
   }
 
   const scope = await validateScope(scopeType, scopeId);

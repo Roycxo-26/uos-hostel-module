@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as notificationsApi from '../api/notifications';
@@ -72,14 +73,23 @@ export function NotificationBell() {
         type="button"
         onClick={() => void handleOpen()}
         aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2"
       >
-        <BellIcon />
-        {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold leading-none text-white">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
+        <BellIcon size={19} />
+        <AnimatePresence>
+          {unreadCount > 0 && (
+            <motion.span
+              key="badge"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+              className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </button>
 
       <Sheet
@@ -95,29 +105,23 @@ export function NotificationBell() {
         }
       >
         {loading ? (
-          <p className="py-8 text-center text-sm text-slate-400">Loading…</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
         ) : notifications.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">Nothing yet.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">Nothing yet.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-border">
             {notifications.map((n) => (
               <li key={n.id}>
                 <button
                   type="button"
                   onClick={() => void handleClick(n)}
-                  // bg-accent-subtle at full strength, not /40 — that
-                  // modifier silently produces no CSS against a
-                  // CSS-variable-backed color (see Login.tsx's own comment
-                  // on this exact Tailwind limitation). accent-subtle is
-                  // already a low-intensity tint by its own definition, so
-                  // using it directly here is correct, not a regression.
-                  className={['flex w-full flex-col gap-0.5 px-1 py-3 text-left', !n.read && 'bg-accent-subtle'].filter(Boolean).join(' ')}
+                  className={['flex w-full flex-col gap-0.5 rounded-lg px-2 py-3 text-left transition-colors hover:bg-muted', !n.read && 'bg-accent-subtle'].filter(Boolean).join(' ')}
                 >
-                  <span className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
                     {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
                     {n.title}
                   </span>
-                  {n.body && <span className="text-xs text-slate-500">{n.body}</span>}
+                  {n.body && <span className="text-xs text-muted-foreground">{n.body}</span>}
                   <span className="text-[11px] text-slate-400">{new Date(n.createdAt).toLocaleString()}</span>
                 </button>
               </li>

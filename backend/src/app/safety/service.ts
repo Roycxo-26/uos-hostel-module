@@ -32,7 +32,7 @@ export async function updateSafetyStatus(user: AuthUser, hostelId: string, input
   // `dataAsOf` is always required by the schema, but a value from the
   // future would be a data-entry error, not genuinely "as of now".
   if (new Date(input.dataAsOf) > new Date()) {
-    throw new ConflictError('dataAsOf cannot be in the future');
+    throw new ConflictError('The "Data as of" date cannot be in the future.');
   }
 
   const after = await repo.updateHostelSafety(hostelId, {

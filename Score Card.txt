@@ -1,0 +1,765 @@
+UOS Conduct, Accountability & Contribution Scorecard
+
+> **Status:** Future Scope — not part of the currently frozen UOS V1 development  
+> **User-facing name:** **My Standing & Contribution**  
+> **Domain decision:** Use existing D01–D30 domains as a cross-domain module. Do not create D31 during V1.
+
+
+
+1. Requirement
+
+UOS shall provide a governed conduct scorecard for students, employees and other authorised institutional users.
+
+The module must allow:
+
+	●	complaint/report creation by scanning an RFID ID card, dynamic QR or searching institutional ID;
+	●	student-to-employee, employee-to-student, student-to-student and employee-to-employee complaints;
+	●	remarks, incident reports, formal cases, findings, sanctions and appeals;
+	●	a relationship-specific Conduct Standing starting from 100/100;
+	●	controlled score deductions only after an approved final finding;
+	●	score restoration through successful appeal, approved improvement plans and verified institutional contribution tasks;
+	●	separate Contribution Points, badges and optional gamification;
+	●	governed automations and agents without automated guilt, sanction or score modification.
+
+
+
+2. Scorecard Model
+
+```text
+My Standing & Contribution
+Conduct Standing          88 / 100
+Contribution Points       1,250
+Standing Status           Improvement Plan Active
+Active Cases              1
+Pending Actions           2
+Eligible Restoration      8 Points
+Appeal Deadline           05 September 2026
+Verified Service Hours    24
+Badges                     6
+```
+
+2.1 Conduct Standing
+
+	●	Default starting score: 100
+	●	Allowed range: 0–100
+	●	Maintained separately for each institutional relationship
+	●	Cannot be edited directly
+	●	Changes only through approved score-ledger entries
+
+2.2 Contribution Points
+
+Earned through verified positive activities such as:
+
+	●	NSS/NCC/community service;
+	●	event support;
+	●	campus cleanliness and sustainability;
+	●	mentoring or peer support;
+	●	innovation challenges;
+	●	sports/cultural support;
+	●	emergency assistance;
+	●	approved improvement or restorative tasks.
+
+Contribution Points may exceed 100. They may drive badges, levels, certificates and optional rewards.
+
+2.3 Standing Status
+
+Examples:
+
+	●	Good Standing
+	●	Advisory Active
+	●	Case Under Review
+	●	Appeal Pending
+	●	Improvement Plan Active
+	●	Interim Restriction Active
+	●	Suspended
+	●	Cleared on Appeal
+	●	Closed and Archived
+
+Serious restrictions must remain visible separately from the numerical score.
+
+
+
+3. Supported Users and Score Duration
+
+Student
+
+	●	Score starts when the student relationship becomes active.
+	●	Continues throughout the course/student period.
+	●	Does not reset on semester, department, hostel or campus transfer.
+	●	Freezes at graduation, withdrawal or final exit.
+	●	Readmission may create a new standing period while retaining previous history according to policy.
+
+Employee
+
+	●	Score starts when employment becomes active.
+	●	Continues through transfer, promotion and role change.
+	●	Freezes at separation.
+	●	Rehire creates a new employment standing period while retaining historical records according to HR policy.
+
+Temporary populations
+
+Contractors, interns, vendor personnel and visitors may have relationship-period standing where required.
+
+Multi-role person
+
+A person may have separate standing records:
+
+```text
+Student Conduct Standing     92 / 100
+Employee Conduct Standing    100 / 100
+```
+
+One relationship must not automatically affect another without an authorised cross-impact decision.
+
+
+
+4. ID Card and ID Search Complaint Flow
+
+Supported identification methods:
+
+	●	RFID ID-card tap;
+	●	dynamic QR scan;
+	●	roll number;
+	●	employee ID;
+	●	institutional ID;
+	●	name and department search;
+	●	hostel room/bed context;
+	●	transport/event manifest;
+	●	unknown-person report for later identification.
+
+```mermaid
+flowchart TD
+    A[Tap RFID / Scan QR / Search ID] --> B[Resolve Credential]
+    B --> C[Resolve Person and Active Relationship]
+    C --> D[Show Minimum Identity Preview]
+    D --> E[Confirm Correct Person]
+    E --> F[Choose Remark / Complaint / Incident / Appreciation]
+    F --> G[Enter Category, Time, Location, Description and Evidence]
+    G --> H[Submit]
+    H --> I[Route to Correct Authority]
+```
+
+Minimum identity preview
+
+Show only:
+
+	●	photo;
+	●	name;
+	●	institutional ID;
+	●	active relationship;
+	●	department/programme/unit;
+	●	active/inactive status.
+
+Do not show:
+
+	●	Conduct Standing;
+	●	previous complaints;
+	●	confidential case history;
+	●	sanctions;
+	●	personal contact information;
+	●	unrelated academic, HR or financial information.
+
+The report must store the resolved person_id, relationship_id, credential used, reporter, device/reader, date, time, location and verification method. The physical card is only an identification token; the case belongs to the person relationship.
+
+
+
+5. Complaint Directions
+
+|Reporter          |Subject            |Primary Route                            |
+|------------------|-------------------|-----------------------------------------|
+|Employee          |Student            |Student Conduct                          |
+|Student           |Student            |Student Conduct                          |
+|Student           |Employee           |HR / Protected Complaint Route           |
+|Employee          |Employee           |HR Grievance or Discipline               |
+|Parent/Guardian   |Student or Employee|Policy-based route                       |
+|Security          |Any person         |Security incident, then owning case route|
+|Contractor/Visitor|Permitted subject  |Contract, HR, conduct or protected route |
+|Anonymous reporter|Permitted subject  |Protected triage route                   |
+
+The user should see one common action:
+
+> **Report Concern / Misconduct**
+
+UOS determines the correct internal route.
+
+
+
+6. Record Types
+
+Remark / Advisory
+
+A low-level observation or warning.
+
+	●	No score deduction
+	●	May require acknowledgement or clarification
+	●	May expire after a configured period
+	●	Repeated remarks may trigger human review
+	●	Repeated remarks cannot automatically become guilt
+
+Complaint / Incident Report
+
+Captures reporter, subject, category, description, time, location, witnesses, evidence, urgency and confidentiality preference.
+
+	●	No score deduction at submission
+	●	Goes through triage
+	●	Can be merged with duplicate reports without losing source history
+
+Formal Conduct Case
+
+Created only after authorised triage. It contains:
+
+	●	allegation and policy version;
+	●	investigator/committee;
+	●	evidence and witnesses;
+	●	notice and response;
+	●	hearing/review;
+	●	finding;
+	●	sanction;
+	●	score effect;
+	●	improvement plan;
+	●	appeal;
+	●	closure/reopen.
+
+Appreciation / Positive Contribution
+
+Records verified positive behaviour and awards Contribution Points or recognition. It does not automatically erase serious misconduct.
+
+
+
+7. Conduct Case Workflow
+
+```mermaid
+stateDiagram-v2
+    [*] --> Submitted
+    Submitted --> Acknowledged
+    Acknowledged --> Triaged
+    Triaged --> Closed_No_Case
+    Triaged --> Referred
+    Triaged --> Formal_Case
+    Formal_Case --> Investigation
+    Investigation --> Notice_Response
+    Notice_Response --> Hearing_Review
+    Hearing_Review --> Finding
+    Finding --> Not_Substantiated
+    Finding --> Substantiated
+    Substantiated --> Sanction_Improvement_Plan
+    Not_Substantiated --> Appeal_Window
+    Sanction_Improvement_Plan --> Appeal_Window
+    Appeal_Window --> Appeal_Pending
+    Appeal_Window --> Final
+    Appeal_Pending --> Upheld
+    Appeal_Pending --> Modified
+    Appeal_Pending --> Overturned
+    Appeal_Pending --> Remanded
+    Upheld --> Final
+    Modified --> Final
+    Overturned --> Final
+    Remanded --> Investigation
+    Final --> Monitoring
+    Monitoring --> Closed
+    Closed --> Reopened
+    Reopened --> Investigation
+```
+
+Mandatory controls:
+
+	●	conflict-of-interest declaration and recusal;
+	●	subject notice and response period;
+	●	evidence access according to policy;
+	●	reasoned finding;
+	●	authorised sanction;
+	●	appeal deadline;
+	●	anti-retaliation protection;
+	●	complete audit history.
+
+
+
+8. Score Deduction
+
+A complaint, remark or pending investigation must not reduce the score.
+
+```text
+Complaint Submitted             No Score Change
+Case Under Investigation        No Score Change
+Interim Safety Restriction      Status Flag Only
+Approved Final Finding          Deduction Ledger Entry
+Successful Appeal               Correction/Restoration Entry
+```
+
+Indicative severity model
+
+|Outcome           |Indicative effect         |Restoration             |
+|------------------|-------------------------:|------------------------|
+|Advisory          |0                         |Not required            |
+|Minor violation   |−1 to −5                  |May be fully restored   |
+|Moderate violation|−6 to −15                 |Controlled restoration  |
+|Major violation   |−16 to −30                |Committee-controlled    |
+|Critical violation|Score plus formal sanction|No automatic restoration|
+
+Actual values must be configurable and policy-versioned.
+
+Score ledger fields
+
+Every deduction or restoration must record:
+
+	●	person and relationship;
+	●	case and finding;
+	●	policy/version;
+	●	severity;
+	●	points deducted/restored;
+	●	approving authority;
+	●	reason and evidence;
+	●	effective date;
+	●	appeal status;
+	●	before and after score;
+	●	audit reference.
+
+No administrator or approver may directly overwrite the score balance.
+
+
+
+9. Score Restoration
+
+The score may increase through the following controlled routes.
+
+Successful appeal
+
+If a finding is overturned or modified, UOS posts a compensating correction entry. The original entry remains in history.
+
+Approved improvement plan
+
+Possible actions:
+
+	●	awareness or policy training;
+	●	counselling/behaviour support;
+	●	restorative conference or apology where appropriate;
+	●	repair or compensation;
+	●	safety training;
+	●	supervised institutional contribution;
+	●	no-recurrence observation period;
+	●	final review by the authorised authority.
+
+Verified contribution tasks
+
+```text
+Current Conduct Standing                  88
+Policy Awareness Programme Completed      +2
+Verified Campus Service                   +4
+No-Recurrence Period Completed            +4
+Final Improvement Review                  +2
+Final Conduct Standing                   100
+```
+
+Time-based rehabilitation
+
+Eligible minor cases may support warning expiry, 30/60/90-day no-recurrence milestones, approved expungement or formal review after sustained improvement.
+
+Restoration limits
+
+|Severity|Rule                                                   |
+|--------|-------------------------------------------------------|
+|Minor   |Tasks and no-recurrence may restore all eligible points|
+|Moderate|Tasks may restore part or all after review             |
+|Major   |Committee approval required; no automatic restoration  |
+|Critical|Appeal or formal rehabilitation review only            |
+
+Conduct Standing cannot exceed 100.
+
+
+
+10. Contribution Missions and Optional Gamification
+
+Mission types:
+
+	●	open community mission;
+	●	institution-assigned task;
+	●	case-linked restorative mission;
+	●	team or department challenge;
+	●	hostel/club mission;
+	●	sustainability mission;
+	●	mentoring/orientation mission;
+	●	emergency-support mission.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Available
+    Available --> Applied
+    Available --> Assigned
+    Applied --> Approved
+    Approved --> Accepted
+    Assigned --> Accepted
+    Accepted --> In_Progress
+    In_Progress --> Evidence_Submitted
+    Evidence_Submitted --> Verification
+    Verification --> Returned
+    Returned --> In_Progress
+    Verification --> Rejected
+    Verification --> Verified
+    Verified --> Points_Posted
+    Points_Posted --> Badge_or_Restoration_Applied
+    Badge_or_Restoration_Applied --> Closed
+```
+
+Configurable gamification:
+
+	●	Contribution Points;
+	●	badges and levels;
+	●	verified service hours;
+	●	certificates;
+	●	team challenges;
+	●	positive leaderboards;
+	●	recognition wall;
+	●	privileges/rewards where approved.
+
+Anti-gaming controls:
+
+	●	no self-verification;
+	●	no duplicate rewards;
+	●	mandatory evidence;
+	●	points cap by category/period;
+	●	no purchase of conduct points;
+	●	no humiliating, unsafe or discriminatory tasks;
+	●	accessible alternatives;
+	●	ordinary employee duties do not automatically earn points;
+	●	collusion detection;
+	●	no public lowest-score leaderboard;
+	●	serious misconduct cannot be cancelled by unrelated achievements.
+
+
+
+11. Appeals for All Users
+
+Every person affected by an adverse decision must have an applicable appeal or review route.
+
+Eligible users may include:
+
+	●	student;
+	●	employee/faculty;
+	●	contractor or temporary worker;
+	●	authorised guardian for a minor;
+	●	authorised representative;
+	●	complainant seeking permitted review of closure or inadequate action;
+	●	visitor or subject of an access restriction.
+
+Appeal grounds
+
+	●	mistaken identity;
+	●	insufficient or false evidence;
+	●	wrong policy or score calculation;
+	●	procedural unfairness;
+	●	conflict of interest or bias;
+	●	disproportionate sanction;
+	●	duplicate punishment;
+	●	completed restoration not recognised;
+	●	new evidence;
+	●	retaliation.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Submitted
+    Submitted --> Admissibility_Review
+    Admissibility_Review --> Accepted
+    Admissibility_Review --> Late_Appeal_Review
+    Admissibility_Review --> Rejected
+    Late_Appeal_Review --> Accepted
+    Accepted --> Independent_Review
+    Independent_Review --> Upheld
+    Independent_Review --> Modified
+    Independent_Review --> Overturned
+    Independent_Review --> Remanded
+    Modified --> Score_Sanction_Updated
+    Overturned --> Score_Sanction_Reversed
+    Remanded --> Original_Case_Reopened
+```
+
+During appeal:
+
+	●	the score entry may display Under Appeal;
+	●	institution policy determines whether the deduction remains active;
+	●	urgent safety restrictions may continue;
+	●	the original ledger entry is never deleted.
+
+
+
+12. Roles and Permissions
+
+|Role                       |Main permission                                             |
+|---------------------------|------------------------------------------------------------|
+|Reporter                   |Submit remark, complaint, incident, evidence or appreciation|
+|Subject/Respondent         |View permitted allegation, respond, submit evidence, appeal |
+|Triage Officer             |Classify, merge duplicates, route or close with reason      |
+|Investigator               |Collect evidence and conduct investigation                  |
+|Conduct/HR Officer         |Manage authorised student or employee case                  |
+|Protected Committee/Officer|Handle anti-ragging, POSH, safeguarding or protected routes |
+|Decision Authority         |Approve finding and sanction                                |
+|Appeal Authority           |Independently review appeal                                 |
+|Mission Owner              |Create approved contribution mission                        |
+|Verifier                   |Verify mission or improvement-task evidence                 |
+|Ledger Service             |Post only approved score transactions                       |
+|Auditor                    |Review permitted audit history                              |
+|System Administrator       |Configure system; no case decision or direct score edit     |
+|Agent/Automation           |Assist within approved tools and limits                     |
+
+Separation of duties:
+
+	●	reporter cannot decide the same case;
+	●	investigator cannot decide the same appeal;
+	●	task assignee cannot verify own completion;
+	●	administrator cannot alter score directly;
+	●	agent cannot approve its own recommendation.
+
+
+
+13. Notifications and Views
+
+Notifications may cover:
+
+	●	complaint acknowledgement;
+	●	clarification request;
+	●	case creation and notice;
+	●	response/hearing deadline;
+	●	interim restriction;
+	●	finding and score adjustment;
+	●	appeal window and decision;
+	●	improvement task assignment;
+	●	evidence returned/verified;
+	●	points restoration;
+	●	case closure/reopen.
+
+Protected notifications must not expose sensitive details in message previews.
+
+Individual view
+
+	●	Conduct Standing and status;
+	●	Contribution Points;
+	●	active cases and restrictions;
+	●	pending response/appeal;
+	●	improvement tasks;
+	●	restoration eligibility;
+	●	badges and verified service hours;
+	●	permitted score ledger.
+
+Conduct/HR view
+
+	●	new/untriaged reports;
+	●	high-risk and overdue cases;
+	●	pending hearings/appeals;
+	●	active improvement plans;
+	●	repeat incidents;
+	●	retaliation risk;
+	●	reviewer workload and SLA breaches.
+
+Management view
+
+Only authorised aggregated data:
+
+	●	complaint and finding trends;
+	●	case ageing;
+	●	appeal-overturn rate;
+	●	recurrence and restoration completion;
+	●	contribution participation;
+	●	fairness/reviewer consistency indicators.
+
+
+
+14. Core Data Objects
+
+	●	Person Relationship Standing
+	●	Conduct Standing Period
+	●	Conduct Ledger Entry
+	●	Contribution Ledger Entry
+	●	Remark
+	●	Complaint/Incident Report
+	●	Incident Participant
+	●	Conduct Case
+	●	Evidence and Witness Record
+	●	Notice and Response
+	●	Hearing/Review
+	●	Finding
+	●	Sanction/Restriction
+	●	Appeal
+	●	Improvement Plan
+	●	Improvement Task
+	●	Contribution Mission
+	●	Completion Evidence
+	●	Badge/Certificate Award
+	●	Score and Restoration Policy
+	●	Audit Event
+
+
+
+15. Automation and Agents
+
+Assist
+
+	●	draft/translate complaint;
+	●	convert voice input to structured report;
+	●	explain policy, score change and appeal route;
+	●	summarise authorised case history;
+	●	explain restoration eligibility.
+
+Recommend
+
+	●	suggest correct routing;
+	●	flag duplicate/related reports;
+	●	identify missing evidence or conflicts;
+	●	recommend suitable improvement tasks;
+	●	flag SLA, fairness, retaliation or score anomalies.
+
+Human decides.
+
+Prepare
+
+	●	complaint summary;
+	●	case chronology;
+	●	notice/hearing packet;
+	●	appeal dossier;
+	●	improvement plan;
+	●	score-impact preview.
+
+Human reviews.
+
+Execute with approval
+
+	●	create routed case;
+	●	send approved notice;
+	●	assign approved task;
+	●	schedule approved hearing;
+	●	post approved score adjustment/restoration;
+	●	issue approved badge/certificate.
+
+Autonomous low risk
+
+	●	reminders;
+	●	appeal-window alerts;
+	●	stale-case escalation;
+	●	no-recurrence milestone alert;
+	●	pending-verification alert;
+	●	duplicate-report warning.
+
+Prohibited
+
+Agents must never autonomously:
+
+	●	determine guilt;
+	●	dismiss protected complaints;
+	●	deduct/restore score;
+	●	decide appeal or sanction;
+	●	disclose protected records;
+	●	suspend, terminate or expel;
+	●	affect salary, promotion, result or graduation;
+	●	publicly rank low-scoring users.
+
+
+
+16. Privacy, Fairness and Misuse Controls
+
+Mandatory:
+
+	●	complaint is not guilt;
+	●	role/purpose-based access;
+	●	protected complainant identity where applicable;
+	●	anti-retaliation safeguards;
+	●	conflict and recusal controls;
+	●	field masking and complete access/export audit;
+	●	duplicate and coordinated mass-report detection;
+	●	false-report review without discouraging genuine complaints;
+	●	no automated punishment;
+	●	no hidden employee surveillance score;
+	●	no public misconduct leaderboard;
+	●	policy-versioned scoring;
+	●	appeal-overturn and reviewer-bias monitoring;
+	●	retention, correction, expungement and reopen controls.
+
+
+
+17. Critical Scenarios
+
+The implementation must handle:
+
+	●	wrong, lost, borrowed or replaced RFID card;
+	●	mistaken identity;
+	●	person with multiple roles;
+	●	anonymous or unknown-person complaint;
+	●	duplicate/mass complaints;
+	●	group incident with multiple subjects and witnesses;
+	●	complaint and counter-complaint;
+	●	retaliation;
+	●	reporter/approver or investigator conflicts;
+	●	complainant withdrawal;
+	●	false evidence discovered later;
+	●	subject refusing acknowledgement;
+	●	late appeal;
+	●	score policy changing while a case is open;
+	●	student/employee transfer or exit with open case;
+	●	readmission/rehire;
+	●	partial task completion;
+	●	rejected contribution evidence;
+	●	offline reader/network failure;
+	●	notification failure;
+	●	incorrect agent recommendation;
+	●	emergency restriction before final finding.
+
+
+
+18. Cross-Domain Placement
+
+|Responsibility                              |Existing UOS Owner|
+|--------------------------------------------|------------------|
+|Person and relationship identity            |D02               |
+|Workflow, case, task, notification and audit|D03               |
+|Student relationship lifecycle              |D05               |
+|Employee discipline and employment lifecycle|D14               |
+|Hostel contextual incident                  |D17               |
+|RFID, QR and credential resolution          |D19               |
+|Student conduct and appeal                  |D21               |
+|Security/safety incident intake             |D22               |
+|Notices, orders and certificates            |D23               |
+|Protected complaints, privacy and compliance|D25               |
+|Analytics and fairness monitoring           |D26               |
+|APIs, events and hardware integration       |D27               |
+|Agents and automation                       |D28               |
+|Badges and contribution credentials         |D29               |
+
+Final domain decision
+
+	●	Keep D01–D30 frozen for active UOS V1 development.
+	●	Store this scorecard as Future Scope.
+	●	Do not create D31 now.
+	●	Reconsider D31 only in a future major release if one independent authoritative conduct domain becomes necessary.
+
+
+
+19. Decisions Required Before Future Development
+
+	1.	Final module and score names.
+	2.	Deduction values and severity categories.
+	3.	Student readmission and employee rehire treatment.
+	4.	Restoration limits by severity.
+	5.	Which activities can restore Conduct Standing versus only earn Contribution Points.
+	6.	Who can assign and verify improvement missions.
+	7.	Appeal deadlines and authorities.
+	8.	Score visibility by role.
+	9.	Treatment of open cases during graduation, exit or separation.
+	10.	Retention and expungement rules.
+	11.	Gamification, badges and reward policy.
+	12.	Anonymous complaint policy.
+	13.	Agent activation phase and approval limits.
+	14.	Future release target: V1.1, V2 or later.
+
+
+
+20. Scope Boundary
+
+This file covers only the UOS Conduct, Accountability & Contribution Scorecard concept discussed in this requirement:
+
+	●	ID-card/ID-search complaints;
+	●	conduct scoring from 100/100;
+	●	deductions, restoration and duration;
+	●	appeals for all affected users;
+	●	contribution tasks and optional gamification;
+	●	agents and automation;
+	●	privacy, fairness, audit and edge cases.
+
+It does not modify the frozen UOS V1 D01–D30 development scope.

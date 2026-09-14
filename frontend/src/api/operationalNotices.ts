@@ -20,7 +20,15 @@ export async function listNotices() {
 }
 
 export async function getNotice(id: string) {
-  return api.get<OperationalNotice & { acknowledgements?: NoticeAcknowledgement[]; unacknowledgedCount?: number }>(`/operational-notices/${id}`);
+  // Real bug, found live via SELF-TEST-GUIDE.md Batch 21: this returned
+  // the raw `{ notice: {...} }` envelope instead of the notice itself,
+  // unlike every other function in this file — never caught before
+  // because nothing in the UI called it until the Dashboard fix alongside
+  // this one.
+  const { notice } = await api.get<{ notice: OperationalNotice & { acknowledgements?: NoticeAcknowledgement[]; unacknowledgedCount?: number } }>(
+    `/operational-notices/${id}`
+  );
+  return notice;
 }
 
 export async function acknowledgeNotice(id: string) {

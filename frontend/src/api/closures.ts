@@ -31,6 +31,16 @@ export async function getClosureCase(id: string) {
   return closureCase;
 }
 
+// UOS_Final.docx audit (12 Sep 2026) — real gap found: the affected-
+// residents list used to only exist AFTER approval (startClosureCase
+// populates it), so a Head Warden deciding a 'proposed' case had no way to
+// see who it would actually affect before approving. Read-only preview,
+// same underlying query, callable at any status.
+export async function previewClosureImpact(id: string) {
+  const { studentIds } = await api.get<{ studentIds: string[] }>(`/closures/${id}/preview-impact`);
+  return studentIds;
+}
+
 export async function decideClosureCase(id: string, decision: 'approved' | 'rejected', reason: string) {
   const { closureCase } = await api.post<{ closureCase: ClosureCase }>(`/closures/${id}/decide`, { decision, reason });
   return closureCase;

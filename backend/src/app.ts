@@ -14,6 +14,7 @@ import { allocationsRouter } from './app/allocations';
 import { checkinsRouter } from './app/checkins';
 import { transfersRouter } from './app/transfers';
 import { responsibilitiesRouter } from './app/responsibilities';
+import { delegationsRouter } from './app/delegations';
 import { movementsRouter } from './app/movements';
 import { headcountRouter } from './app/headcount';
 import { casesRouter } from './app/cases';
@@ -78,6 +79,7 @@ export function createApp() {
   app.use('/checkins', checkinsRouter());
   app.use('/transfers', transfersRouter());
   app.use('/responsibilities', responsibilitiesRouter());
+  app.use('/delegations', delegationsRouter());
   app.use('/movements', movementsRouter());
   app.use('/headcount', headcountRouter());
   app.use('/cases', casesRouter());

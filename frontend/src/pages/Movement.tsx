@@ -89,6 +89,12 @@ export function Movement() {
   // D17.10 item 90 — a resident's own registered guardian contacts.
   const [guardians, setGuardians] = useState<ResidentGuardian[]>([]);
   const [addGuardianOpen, setAddGuardianOpen] = useState(false);
+  // Real gap found live via SELF-TEST-GUIDE.md Batch 23 — staff-only,
+  // every resident's guardian contacts, so there's somewhere to actually
+  // act on the "awaiting verification" notification addGuardian already
+  // sends (see movements/service.ts's own comment on that notify call).
+  const [allGuardians, setAllGuardians] = useState<ResidentGuardian[]>([]);
+  const [verifyingGuardian, setVerifyingGuardian] = useState<string | null>(null);
 
   const [sessions, setSessions] = useState<HeadcountSession[]>([]);
   const [openSessionOpen, setOpenSessionOpen] = useState(false);
@@ -114,19 +120,31 @@ export function Movement() {
 
   async function load() {
     setLoading(true);
-    const [m, s, issues, labels, g] = await Promise.all([
+    const [m, s, issues, labels, g, allG] = await Promise.all([
       movementApi.listMovements(),
       headcountApi.listSessions(),
       isStaff ? headcountApi.listOpenIssues() : Promise.resolve([]),
       buildScopeLabelIndex(),
       movementApi.listMyGuardians(),
+      isStaff ? movementApi.listAllGuardians() : Promise.resolve([]),
     ]);
     setMovements(m);
     setSessions(s);
     setOpenIssues(issues);
     setScopeLabels(labels);
     setGuardians(g);
+    setAllGuardians(allG);
     setLoading(false);
+  }
+
+  async function handleVerifyGuardian(guardianId: string) {
+    setVerifyingGuardian(guardianId);
+    try {
+      await movementApi.verifyGuardian(guardianId);
+      await load();
+    } finally {
+      setVerifyingGuardian(null);
+    }
   }
 
   useEffect(() => {
@@ -211,6 +229,38 @@ export function Movement() {
                 ))}
               </ul>
             </Card>
+          )}
+
+          {isStaff && (
+            <>
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">Guardian verification</h2>
+              {allGuardians.length === 0 ? (
+                <EmptyState icon={<ClipboardIcon className="h-8 w-8" />} title="No guardian contacts yet" description="Nothing for residents to add yet." />
+              ) : (
+                <Card className="mb-8">
+                  <ul className="divide-y divide-slate-100">
+                    {allGuardians.map((g) => (
+                      <li key={g.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            {studentLabel(residentNames, g.studentId)} — {g.name} <span className="font-normal text-slate-500">({g.relationship})</span>
+                            {g.isPrimary && <span className="ml-2 text-xs text-slate-500">Primary</span>}
+                          </p>
+                          <p className="text-xs text-slate-500">{g.mobileNumber}</p>
+                        </div>
+                        {g.verified ? (
+                          <StatusPill status="verified" />
+                        ) : (
+                          <Button size="sm" onClick={() => void handleVerifyGuardian(g.id)} disabled={verifyingGuardian === g.id}>
+                            {verifyingGuardian === g.id ? 'Verifying…' : 'Verify'}
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
+            </>
           )}
 
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Movement requests</h2>

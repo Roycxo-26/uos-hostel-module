@@ -1,15 +1,26 @@
+import { motion } from 'framer-motion';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenantSettings } from '../context/TenantSettingsContext';
 import { Avatar } from '../design-system/Avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../design-system/DropdownMenu';
 import { NotificationBell } from '../design-system/NotificationBell';
 import { Sheet } from '../design-system/Sheet';
+import { ThemeToggle } from '../design-system/ThemeToggle';
 import {
   AlertIcon,
   BedIcon,
   BuildingIcon,
+  CameraIcon,
   ChartIcon,
   ClipboardIcon,
   DoorIcon,
@@ -144,6 +155,17 @@ const NAV_ITEMS: NavItem[] = [
     visible: (me) => isPlatformAdmin(me) || hasHostelRole(me, 'warden'),
     group: 'Safety & Services',
   },
+  // Frontline/offline support (12 Sep 2026) — UOS_Final.docx audit
+  // §"ground and frontline worker mobile mode". Same staff-only gate as
+  // the rest of this group, see Frontline.tsx's own header comment on why
+  // (no distinct Floor Incharge login role exists yet).
+  {
+    path: '/frontline',
+    label: 'Frontline',
+    icon: CameraIcon,
+    visible: (me) => isPlatformAdmin(me) || hasHostelRole(me, 'warden'),
+    group: 'Safety & Services',
+  },
   // HOSTEL-GAP-ANALYSIS.md D17.25 (TODO.md Batch 22) — staff-only, same
   // reasoning as the other new Batch 16-21 pages.
   {
@@ -206,9 +228,22 @@ function displayRole(me: Me): string {
  * whenever on /cases, regardless of which type. Full pathname+search
  * comparison for those; pathname-only for everything else, so an
  * unrelated stray query param elsewhere can't break a plain route's
- * active state. */
+ * active state.
+ *
+ * Real gap found live via SELF-TEST-GUIDE.md Batch 24: landing on the
+ * bare, unfiltered /cases (e.g. a notification link straight to a
+ * welfare/safeguarding case, which never carries a ?type — see Cases.tsx's
+ * own comment on why) matched neither /cases?type=complaint nor
+ * /cases?type=incident exactly, so nothing in the sidebar highlighted at
+ * all — no "you are here" cue anywhere. With no search string present,
+ * fall back to a pathname-only match so at least one relevant tab lights
+ * up (both light up together here, which is honest — you're on a Cases
+ * page, just not scoped to either one specifically). */
 function isNavItemActive(item: NavItem, pathname: string, search: string): boolean {
-  if (item.path.includes('?')) return pathname + search === item.path;
+  if (item.path.includes('?')) {
+    if (search) return pathname + search === item.path;
+    return pathname === item.path.split('?')[0];
+  }
   return pathname === item.path;
 }
 
@@ -223,14 +258,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, me, logout } = useAuth();
   const { settings } = useTenantSettings();
   const location = useLocation();
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
   if (!user) return null;
 
   const items = NAV_ITEMS.filter((item) => !item.visible || item.visible(me));
   const primaryMobileItems = items.filter((item) => item.primaryMobile);
-  const overflowItems = items.filter((item) => !item.primaryMobile);
   const institutionName = settings?.branding.institutionName ?? 'Hostel Management';
 
   const groups = new Map<string | undefined, NavItem[]>();
@@ -240,20 +273,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 md:flex">
+    <div className="min-h-screen bg-background md:flex">
+      <div className="ambient-surface" aria-hidden="true" />
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:w-64 md:shrink-0 md:flex-col md:overflow-y-auto md:border-r md:border-slate-200 md:bg-white">
-        <div className="flex items-center justify-between gap-2.5 px-5 py-5">
+      <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col md:border-r md:border-border md:bg-card">
+        <div className="shrink-0 flex items-center justify-between gap-2.5 px-5 py-5">
           <div className="flex min-w-0 items-center gap-2.5">
             <Avatar label={institutionName} shape="square" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold leading-tight text-slate-900">{institutionName}</p>
-              <p className="text-xs text-slate-500">Hostel Management</p>
+              <p className="truncate text-sm font-semibold leading-tight text-foreground">{institutionName}</p>
+              <p className="text-xs text-muted-foreground">Hostel Management</p>
             </div>
           </div>
-          <NotificationBell />
         </div>
-        <nav className="flex-1 space-y-4 px-3 pb-3">
+        <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-3">
           {[...groups.entries()].map(([group, groupItems]) => (
             <div key={group ?? '__root'}>
               {group && <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{group}</p>}
@@ -265,51 +298,61 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="border-t border-slate-200 p-3">
-          <UserSummary me={me} sub={user.sub} onLogout={logout} />
+        <div className="shrink-0 border-t border-border p-3">
+          <UserMenu me={me} sub={user.sub} onLogout={logout} />
         </div>
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
-        {/* Mobile top bar */}
-        <header className="pt-safe sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur md:hidden">
-          <div className="flex items-center justify-between gap-2 px-4 py-3">
-            <div className="flex min-w-0 items-center gap-2.5">
+        {/* Top bar — mobile brand row, and (from md up) the utility rail
+            that used to live in the desktop sidebar header. Keeping it
+            here instead of in the sidebar means it's reachable from the
+            same spot on every viewport size. */}
+        {/* Solid, not translucent — `card` is a CSS-variable-backed colour
+            (see index.css) and Tailwind's `/NN` opacity modifier doesn't
+            generate CSS against a var()-based colour (confirmed
+            empirically; see Field.tsx's own note). */}
+        <header className="pt-safe sticky top-0 z-30 border-b border-border bg-card">
+          <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-2.5 md:hidden">
               <Avatar label={institutionName} shape="square" size="sm" />
-              <p className="truncate text-sm font-semibold text-slate-900">{institutionName}</p>
+              <p className="truncate text-sm font-semibold text-foreground">{institutionName}</p>
             </div>
+            <div className="hidden md:block" />
             <div className="flex items-center gap-1">
+              <ThemeToggle />
               <NotificationBell />
-              <button
-                type="button"
-                onClick={() => setUserMenuOpen((v) => !v)}
-                aria-label="Account menu"
-                className="rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                <Avatar label={me?.name ?? user.sub} size="sm" />
-              </button>
+              <div className="md:hidden">
+                <MobileUserMenu me={me} sub={user.sub} onLogout={logout} />
+              </div>
             </div>
           </div>
-          {userMenuOpen && (
-            <div className="border-t border-slate-200 px-4 py-3">
-              <UserSummary me={me} sub={user.sub} onLogout={logout} />
-            </div>
-          )}
         </header>
 
         <main className="flex-1 pb-20 md:pb-0">
+          {/* No route-keyed AnimatePresence wrapper here on purpose: keying
+              a motion.div by location.pathname forces React to fully
+              unmount and remount every page on each navigation rather than
+              just re-render it — wasteful (drops any in-page state on a
+              search-param-only change, e.g. switching the Cases sidebar
+              entry between ?type=complaint/incident), and in dev,
+              StrictMode's intentional double-invoke of that fresh mount
+              plays the fade twice, reading as a flash/refresh. Every page
+              already gets its own "arrived with a little life" moment from
+              PageHeader's own entrance animation, so nothing is lost by
+              not doing it again at this level. */}
           <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">{children}</div>
         </main>
 
         {/* Mobile bottom nav */}
-        <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white md:hidden">
+        <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card md:hidden">
           {primaryMobileItems.map((item) => (
             <BottomNavLink key={item.path} item={item} active={isNavItemActive(item, location.pathname, location.search)} />
           ))}
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-slate-500"
+            className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground"
           >
             <MoreIcon />
             More
@@ -336,9 +379,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                         key={item.path}
                         to={item.path}
                         onClick={() => setMoreOpen(false)}
-                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-muted"
                       >
-                        <Icon className="shrink-0 text-slate-500" />
+                        <Icon className="shrink-0 text-muted-foreground" />
                         {item.label}
                       </Link>
                     );
@@ -361,14 +404,20 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
       aria-current={active ? 'page' : undefined}
       className={[
         'relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-        active ? 'bg-accent-subtle text-accent' : 'text-slate-600 hover:bg-slate-100',
+        active ? 'bg-accent-subtle text-accent' : 'text-slate-600 hover:bg-muted',
       ].join(' ')}
     >
-      {/* Left accent bar on the active item — a stronger, more deliberate
-          "you are here" signal than a background tint alone, and the exact
-          pattern most institutional/enterprise admin shells use precisely
-          because it reads clearly at a glance, not just on hover. */}
-      {active && <span className="absolute -left-3 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-accent" />}
+      {/* Shared-layout active indicator — framer-motion smoothly slides
+          this bar from whichever item it was last on to this one instead
+          of it just appearing, the one "wow, that's polished" touch
+          navigation gets to show off on every single route change. */}
+      {active && (
+        <motion.span
+          layoutId="sidebar-active-indicator"
+          transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+          className="absolute -left-3 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-accent"
+        />
+      )}
       <Icon className="shrink-0" />
       {item.label}
     </Link>
@@ -382,8 +431,8 @@ function BottomNavLink({ item, active }: { item: NavItem; active: boolean }) {
       to={item.path}
       aria-current={active ? 'page' : undefined}
       className={[
-        'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium',
-        active ? 'text-accent' : 'text-slate-500',
+        'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
+        active ? 'text-accent' : 'text-muted-foreground',
       ].join(' ')}
     >
       <Icon />
@@ -393,25 +442,60 @@ function BottomNavLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-function UserSummary({ me, sub, onLogout }: { me: Me | null; sub: string; onLogout: () => void }) {
+/** Desktop sidebar footer — a real Radix dropdown instead of a static
+ * summary row, so "log out" doesn't have to be the only action ever
+ * offered there again. */
+function UserMenu({ me, sub, onLogout }: { me: Me | null; sub: string; onLogout: () => void }) {
   const name = me?.name ?? sub.slice(0, 8);
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <Avatar label={name} size="sm" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-slate-900">{name}</p>
-          <p className="truncate text-xs text-slate-500">{me ? displayRole(me) : '…'}</p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={onLogout}
-        aria-label="Log out"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-      >
-        <LogOutIcon />
-      </button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <Avatar label={name} size="sm" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{name}</p>
+            <p className="truncate text-xs text-muted-foreground">{me ? displayRole(me) : '…'}</p>
+          </div>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="w-56">
+        <DropdownMenuLabel>{name}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onSelect={onLogout} className="gap-2.5">
+          <LogOutIcon size={16} />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Mobile top-bar equivalent — same menu contents, triggered from the
+ * avatar instead of a footer row since there's no persistent sidebar to
+ * anchor it to on small screens. */
+function MobileUserMenu({ me, sub, onLogout }: { me: Me | null; sub: string; onLogout: () => void }) {
+  const name = me?.name ?? sub.slice(0, 8);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" aria-label="Account menu" className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2">
+          <Avatar label={name} size="sm" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>
+          {name}
+          <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">{me ? displayRole(me) : '…'}</span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onSelect={onLogout} className="gap-2.5">
+          <LogOutIcon size={16} />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

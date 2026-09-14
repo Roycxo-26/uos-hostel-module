@@ -93,6 +93,17 @@ export async function declinePolicy(versionId: string, reason: string) {
   return acknowledgement;
 }
 
+// Staff-only roster (who accepted/declined/still pending, and why) — the
+// backend has supported this since publishPolicyVersion was built, but
+// nothing on the page ever called it, same gap class as
+// publishPolicyVersion itself (SELF-TEST-GUIDE.md Batch 20): a "declined,
+// needs staff follow-up" notification with nowhere to actually see who
+// declined or why.
+export async function listAcknowledgementsForVersion(versionId: string) {
+  const { acknowledgements } = await api.get<{ acknowledgements: PolicyAcknowledgement[] }>(`/grievances/policy-versions/${versionId}/acknowledgements`);
+  return acknowledgements;
+}
+
 export async function getMyRights() {
   return api.get<MyRights>('/grievances/my-rights');
 }

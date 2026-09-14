@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireHostelPermission } from '../../middlewares/requireHostelPermission';
+import { withIdempotency } from '../../middlewares/idempotency';
 import * as controller from './controller';
 
 // HOSTEL-GAP-ANALYSIS.md D17.11 + D17.17 (TODO.md Batch 16). All actions
@@ -19,7 +20,16 @@ export function safetyRouter(): Router {
   r.get('/drills/:drillId', controller.getDrill);
   r.post('/drills/:drillId/validate-coverage', canManage, controller.validateCoverage);
   r.post('/drills/:drillId/start', canManage, controller.startDrill);
-  r.post('/drills/:drillId/entries', canManage, controller.markDrillEntry);
+  // Frontline/offline support (12 Sep 2026) — tap-to-check-in during a
+  // live drill, wrapped for offline-retry safety. Deliberately NOT given
+  // an expectedUpdatedAt/version conflict check like maintenance/roomAccess
+  // get — completeDrill's own comment above already states the reasoning
+  // this shares: never let a software gate block closing out a real
+  // emergency. Marking the same resident "accounted for" twice (even from
+  // two different staff who were both offline) converges to the same
+  // correct outcome — last write wins is the right behaviour here, not a
+  // bug to guard against.
+  r.post('/drills/:drillId/entries', canManage, withIdempotency('safety.markDrillEntry', controller.markDrillEntry));
   r.post('/drills/:drillId/complete', canManage, controller.completeDrill);
   r.post('/drills/:drillId/cancel', canManage, controller.cancelDrill);
 

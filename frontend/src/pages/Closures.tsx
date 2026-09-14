@@ -63,6 +63,20 @@ const REOPENING_CHECKLIST_LABELS: Record<string, string> = {
 };
 const REOPENING_CHECKLIST_KEYS = Object.keys(REOPENING_CHECKLIST_LABELS);
 
+// Real bug, found live via SELF-TEST-GUIDE.md Batch 22: the backend's
+// camelCaseResponses middleware deep-converts EVERY key in a JSON
+// response, including the freeform keys inside reopeningChecklist's own
+// JSONB blob — so `facilities_safety_readiness` comes back as
+// `facilitiesSafetyReadiness`. Writes still use the raw snake_case key
+// (the request body isn't touched by that middleware, and the backend's
+// own zod enum requires exactly this snake_case form), but reading the
+// result back needs this same conversion or the checkbox never finds its
+// own value and stays permanently unchecked, even though the save itself
+// succeeded every time.
+function snakeToCamel(key: string): string {
+  return key.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+}
+
 function humanize(s: string): string {
   return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -74,6 +88,8 @@ interface FlatOption {
 interface FlatBed extends FlatOption {
   status: string;
   bedCategory: string;
+  floorId: string;
+  roomId: string;
 }
 
 function flattenTree(tree: HostelTree | null): { floors: FlatOption[]; rooms: FlatOption[]; beds: FlatBed[] } {
@@ -86,7 +102,14 @@ function flattenTree(tree: HostelTree | null): { floors: FlatOption[]; rooms: Fl
       for (const room of floor.rooms) {
         rooms.push({ id: room.id, label: `${block.code}-${floor.number}-${room.code}` });
         for (const bed of room.beds) {
-          beds.push({ id: bed.id, label: `${block.code}-${floor.number}-${room.code}-${bed.code}`, status: bed.status, bedCategory: bed.bedCategory });
+          beds.push({
+            id: bed.id,
+            label: `${block.code}-${floor.number}-${room.code}-${bed.code}`,
+            status: bed.status,
+            bedCategory: bed.bedCategory,
+            floorId: floor.id,
+            roomId: room.id,
+          });
         }
       }
     }
@@ -336,6 +359,13 @@ function CaseDetailSheet({ closureCase, onClose, onChanged }: { closureCase: Clo
   const [tree, setTree] = useState<HostelTree | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
+  // UOS_Final.docx audit (12 Sep 2026) — real gap: a Head Warden deciding a
+  // 'proposed' case previously saw nothing about who it would affect, since
+  // the real impact list only ever got populated AFTER approval
+  // (startClosureCase). null = still loading; kept separate from the
+  // impacts array below since a proposed case has no impact rows yet at
+  // all, that's the whole problem this fixes.
+  const [previewStudentIds, setPreviewStudentIds] = useState<string[] | null>(null);
 
   async function reload() {
     setC(await closuresApi.getClosureCase(closureCase.id));
@@ -344,6 +374,7 @@ function CaseDetailSheet({ closureCase, onClose, onChanged }: { closureCase: Clo
   useEffect(() => {
     void reload();
     void structureApi.getHostelTree(closureCase.hostelId).then(setTree);
+    void closuresApi.previewClosureImpact(closureCase.id).then(setPreviewStudentIds);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closureCase.id]);
 
@@ -362,7 +393,20 @@ function CaseDetailSheet({ closureCase, onClose, onChanged }: { closureCase: Clo
   }
 
   const { beds } = flattenTree(tree);
-  const availableResidentBeds = beds.filter((b) => b.status === 'available' && b.bedCategory === 'resident');
+  // Real bug, found live via SELF-TEST-GUIDE.md Batch 22: this used to
+  // offer every available resident bed in the hostel, including ones on
+  // the very floor/room being shut down — relocating someone there always
+  // fails, since the backend correctly blocks new occupancy anywhere
+  // inside the closure's own scope while it's active. Exclude the case's
+  // own scope from the destination picker so every option shown actually
+  // works.
+  const availableResidentBeds = beds.filter((b) => {
+    if (b.status !== 'available' || b.bedCategory !== 'resident') return false;
+    if (c.scopeType === 'floor' && b.floorId === c.scopeId) return false;
+    if (c.scopeType === 'room' && b.roomId === c.scopeId) return false;
+    if (c.scopeType === 'hostel') return false; // whole hostel is closing — no bed within it can ever be a valid destination
+    return true;
+  });
   const pendingImpacts = (c.impacts ?? []).filter((i) => i.outcome === 'pending');
   const checklist = c.reopeningChecklist ?? {};
 
@@ -377,6 +421,20 @@ function CaseDetailSheet({ closureCase, onClose, onChanged }: { closureCase: Clo
 
         {c.status === 'proposed' && (
           <div className="space-y-2">
+            {previewStudentIds === null ? (
+              <p className="text-xs text-slate-400">Checking who this would affect…</p>
+            ) : previewStudentIds.length === 0 ? (
+              <Alert>No residents currently live in this scope — approving this affects nobody directly.</Alert>
+            ) : (
+              <Alert tone="warning">
+                <p className="font-medium">This will affect {previewStudentIds.length} resident{previewStudentIds.length === 1 ? '' : 's'}:</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  {previewStudentIds.map((id) => (
+                    <li key={id}>{residentNames[id] ?? id.slice(0, 8)}</li>
+                  ))}
+                </ul>
+              </Alert>
+            )}
             <FieldWrapper label="Decision reason" htmlFor="cd-reason">
               <Input id="cd-reason" value={decisionReason} onChange={(e) => setDecisionReason(e.target.value)} />
             </FieldWrapper>
@@ -501,7 +559,7 @@ function CaseDetailSheet({ closureCase, onClose, onChanged }: { closureCase: Clo
                       <label className="flex min-h-touch cursor-pointer items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={Boolean(checklist[key]?.completed)}
+                          checked={Boolean(checklist[snakeToCamel(key)]?.completed)}
                           onChange={(e) => void run(`checklist-${key}`, () => closuresApi.updateReopeningChecklist(c.id, key, e.target.checked))}
                           disabled={Boolean(submitting)}
                           className="h-4 w-4 rounded border-slate-300 text-accent"

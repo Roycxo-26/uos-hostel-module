@@ -37,6 +37,14 @@ export async function getClosureCase(req: Request, res: Response, next: NextFunc
   }
 }
 
+export async function previewImpact(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    success(res, await service.previewImpact(req.params.caseId));
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function decideClosureCase(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = decideClosureCaseSchema.parse(req.body);

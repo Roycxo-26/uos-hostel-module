@@ -29,7 +29,7 @@ export const requestMovementSchema = z
     guardianId: z.string().uuid(),
   })
   .refine((v) => new Date(v.requestedReturn) > new Date(v.requestedOut), {
-    message: 'requestedReturn must be after requestedOut',
+    message: 'The return time must be after the departure time.',
     path: ['requestedReturn'],
   });
 

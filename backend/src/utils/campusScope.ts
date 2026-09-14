@@ -23,13 +23,13 @@ import { ForbiddenError, ValidationError } from '../middlewares/errorHandler';
 export function resolveCampusId(user: AuthUser, requestedCampusId?: string): string {
   if (user.campus_scope === 'ALL') {
     if (!requestedCampusId) {
-      throw new ValidationError('campusId is required when acting with campus_scope=ALL');
+      throw new ValidationError('Please choose a campus — your account isn\'t tied to just one, so you need to say which campus this applies to.');
     }
     return requestedCampusId;
   }
 
   if (requestedCampusId && requestedCampusId !== user.campus_id) {
-    throw new ForbiddenError('campusId does not match your assigned campus for this session');
+    throw new ForbiddenError('You can only act on your own assigned campus.');
   }
 
   return user.campus_id;

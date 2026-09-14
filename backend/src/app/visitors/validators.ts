@@ -18,7 +18,7 @@ export const requestVisitorSchema = z
     emergencyContact: z.string().trim().max(100).optional(),
   })
   .refine((v) => new Date(v.requestedVisitEnd) > new Date(v.requestedVisitStart), {
-    message: 'requestedVisitEnd must be after requestedVisitStart',
+    message: 'The visit end time must be after the visit start time.',
     path: ['requestedVisitEnd'],
   });
 

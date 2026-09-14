@@ -30,7 +30,10 @@ interface ErrorEnvelope {
   error: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+// Exported for offline/syncManager.ts — it needs to replay a queued
+// request with its own fetch() call (to attach an Idempotency-Key header
+// api.post doesn't support), so it needs the same base URL this file uses.
+export const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * One fetch wrapper for the whole app — every module's api/*.ts file routes
@@ -63,7 +66,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path),
-  post: <T>(path: string, data?: unknown) => apiFetch<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined }),
-  patch: <T>(path: string, data?: unknown) => apiFetch<T>(path, { method: 'PATCH', body: data ? JSON.stringify(data) : undefined }),
+  // `headers` param added for offline/syncManager.ts and the Frontline
+  // screens' own direct (online) calls — both attach an Idempotency-Key
+  // header so a request that succeeds on the server but whose response is
+  // lost on a weak connection (not just a fully offline one) can be
+  // safely retried without double-applying the action.
+  post: <T>(path: string, data?: unknown, headers?: Record<string, string>) =>
+    apiFetch<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined, headers }),
+  patch: <T>(path: string, data?: unknown, headers?: Record<string, string>) =>
+    apiFetch<T>(path, { method: 'PATCH', body: data ? JSON.stringify(data) : undefined, headers }),
   delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
 };

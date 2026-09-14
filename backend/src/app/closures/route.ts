@@ -16,6 +16,7 @@ export function closuresRouter(): Router {
   r.post('/', canManage, controller.createClosureCase);
   r.get('/', canManage, controller.listClosureCases);
   r.get('/:caseId', canManage, controller.getClosureCase);
+  r.get('/:caseId/preview-impact', canManage, controller.previewImpact);
   r.post('/:caseId/decide', canManage, controller.decideClosureCase);
   r.post('/:caseId/start', canManage, controller.startClosureCase);
   r.post('/:caseId/impacts', canManage, controller.addManualImpact);

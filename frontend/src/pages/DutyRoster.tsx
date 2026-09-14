@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import * as casesApi from '../api/cases';
+import * as delegationsApi from '../api/delegations';
 import * as dutyApi from '../api/dutyRoster';
 import * as noticesApi from '../api/operationalNotices';
+import * as responsibilitiesApi from '../api/responsibilities';
 import * as structureApi from '../api/structure';
 import {
   Alert,
@@ -20,7 +22,10 @@ import {
 import { AlertIcon } from '../design-system/icons';
 import { errorMessage } from '../lib/errorMessage';
 import type {
+  ApproverDelegation,
   CoverageValidation,
+  DelegatableEntityType,
+  DelegatableRole,
   DutyPrivilegeType,
   FinanceOfficerPrivilegeType,
   Hostel,
@@ -30,6 +35,7 @@ import type {
   ResidentEmergencyCard,
   SafeguardingPrivilegeType,
 } from '../types';
+import { DELEGATABLE_ENTITY_TYPES } from '../types';
 import type { ResponsibilityAssignment } from '../api/responsibilities';
 
 /** HOSTEL-GAP-ANALYSIS.md D17.22 (TODO.md Batch 21) — who's on duty right
@@ -40,6 +46,19 @@ function useResidentNames(): Record<string, string> {
   useEffect(() => {
     void casesApi.listResidentDirectory().then((residents) => {
       setNames(Object.fromEntries(residents.map((r) => [r.id, r.name])));
+    });
+  }, []);
+  return names;
+}
+
+/** Same shape as useResidentNames above, but for staff — a delegation's
+ * "created by" / "delegated to" are always Warden/Head Warden holders, not
+ * residents, so this is the delegate-name lookup for DelegationTab. */
+function useStaffNames(): Record<string, string> {
+  const [names, setNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    void casesApi.listCaseStaffDirectory().then((staff) => {
+      setNames(Object.fromEntries(staff.map((s) => [s.id, s.name])));
     });
   }, []);
   return names;
@@ -69,7 +88,19 @@ const FINANCE_LABELS: Record<FinanceOfficerPrivilegeType, string> = {
 };
 const FINANCE_PRIVILEGE_TYPES = Object.keys(FINANCE_LABELS) as FinanceOfficerPrivilegeType[];
 
-type Tab = 'roster' | 'notices' | 'emergency-card';
+// UOS_Final.docx audit (12 Sep 2026) §6.4.
+const DELEGATABLE_ROLE_LABELS: Record<DelegatableRole, string> = { warden: 'Warden', head_warden: 'Head Warden' };
+const ENTITY_TYPE_LABELS: Record<DelegatableEntityType, string> = {
+  case: 'Complaints & incidents',
+  checkout: 'Checkout',
+  closure_case: 'Shutdown/reopening',
+  movement_extension_request: 'Gate pass extensions',
+  movement_request: 'Gate pass / leave requests',
+  resident_privilege_change: 'Privilege changes / suspension',
+  transfer_request: 'Transfer requests',
+};
+
+type Tab = 'roster' | 'delegation' | 'notices' | 'emergency-card';
 
 export function DutyRoster() {
   const [tab, setTab] = useState<Tab>('roster');
@@ -87,6 +118,7 @@ export function DutyRoster() {
         {(
           [
             ['roster', 'Duty Roster'],
+            ['delegation', 'Delegation'],
             ['notices', 'Notices'],
             ['emergency-card', 'Emergency Card'],
           ] as [Tab, string][]
@@ -103,6 +135,7 @@ export function DutyRoster() {
       </div>
 
       {tab === 'roster' && <RosterTab hostels={hostels} />}
+      {tab === 'delegation' && <DelegationTab hostels={hostels} />}
       {tab === 'notices' && <NoticesTab hostels={hostels} />}
       {tab === 'emergency-card' && <EmergencyCardTab />}
     </div>
@@ -122,6 +155,8 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignSafeguardingOpen, setAssignSafeguardingOpen] = useState(false);
   const [assignFinanceOpen, setAssignFinanceOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
 
   const dutyAssignments = assignments.filter((a) => a.privilegeType in DUTY_LABELS);
   const safeguardingAssignments = assignments.filter((a) => SAFEGUARDING_PRIVILEGE_TYPES.includes(a.privilegeType as SafeguardingPrivilegeType));
@@ -134,6 +169,25 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
     setAssignments(list.filter((a) => a.scopeType === 'hostel' && a.status === 'active'));
     setCoverage(cov);
     setLoading(false);
+  }
+
+  // Real gap found live via SELF-TEST-GUIDE.md Batch 21 — the escalation
+  // ladder test ("revoke the primary, with a substitute set, coverage
+  // should fall to the substitute") had no way to actually revoke an
+  // assignment from this page: revokeAssignment already existed and is
+  // used the same way on Structure.tsx's Room Head panel, just never
+  // wired up here.
+  async function handleRevoke(id: string) {
+    setRevoking(id);
+    setError(null);
+    try {
+      await responsibilitiesApi.revokeAssignment(id, 'Revoked from Duty Roster screen');
+      await load(hostelId);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setRevoking(null);
+    }
   }
 
   useEffect(() => {
@@ -169,6 +223,12 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
           <Button onClick={() => setAssignOpen(true)}>Assign duty</Button>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-4">
+          <Alert>{error}</Alert>
+        </div>
+      )}
 
       {loading ? (
         <PageSpinner />
@@ -210,9 +270,14 @@ function RosterTab({ hostels }: { hostels: Hostel[] }) {
                         {a.substituteUserId && ` — backup: ${residentNames[a.substituteUserId] ?? a.substituteUserId.slice(0, 8)}`}
                       </p>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      {new Date(a.effectiveFrom).toLocaleString()} – {a.effectiveTo ? new Date(a.effectiveTo).toLocaleString() : 'open'}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-xs text-slate-500">
+                        {new Date(a.effectiveFrom).toLocaleString()} – {a.effectiveTo ? new Date(a.effectiveTo).toLocaleString() : 'open'}
+                      </p>
+                      <Button size="sm" variant="danger" onClick={() => void handleRevoke(a.id)} disabled={revoking === a.id}>
+                        {revoking === a.id ? 'Revoking…' : 'Revoke'}
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -531,6 +596,289 @@ function AssignFinanceOfficerSheet({ hostelId, onClose, onAssigned }: { hostelId
             <Input id="af-to" type="datetime-local" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} />
           </FieldWrapper>
         </div>
+      </div>
+    </Sheet>
+  );
+}
+
+// ============================================================================
+// Delegation — UOS_Final.docx audit (12 Sep 2026) §6.4. "Let someone else
+// act with my approval authority while I'm away." Real gap found building
+// this: hostel.approver_delegations (TODO.md Batch 2) and the checking
+// side (utils/approvalResolution.ts) already existed and were already
+// consumed by 6 approval workflows — nobody could ever actually create one.
+// ============================================================================
+
+function DelegationTab({ hostels }: { hostels: Hostel[] }) {
+  const staffNames = useStaffNames();
+  const [hostelId, setHostelId] = useState(hostels[0]?.id ?? '');
+  const [delegations, setDelegations] = useState<ApproverDelegation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [revoking, setRevoking] = useState<ApproverDelegation | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // A delegation belongs to a campus (hostel.approver_delegations.campus_id
+  // — it's role-level authority, not tied to one hostel), but this page
+  // otherwise scopes everything by hostel — deriving the campus from the
+  // selected hostel keeps the same "pick a hostel above" shape as the
+  // other tabs instead of asking staff to pick a campus separately.
+  const campusId = hostels.find((h) => h.id === hostelId)?.campusId ?? '';
+
+  async function load() {
+    if (!campusId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setDelegations(await delegationsApi.listDelegations({ campusId, active: true }));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (hostels[0]?.id && !hostelId) setHostelId(hostels[0].id);
+  }, [hostels, hostelId]);
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campusId]);
+
+  return (
+    <div>
+      <Alert>
+        Delegation hands your own approval authority to someone else for a fixed window — for example, a Warden going on leave lets a
+        colleague decide transfers/checkouts/complaints in their place. It stops the moment you revoke it, and you can keep specific
+        decisions for yourself even while delegating everything else.
+      </Alert>
+      <div className="mb-4 mt-4 flex items-end justify-between gap-3">
+        <div className="max-w-xs flex-1">
+          <FieldWrapper label="Hostel" htmlFor="dl-hostel" hint="Used only to pick the campus — a delegation covers the whole campus, not one hostel">
+            <Select id="dl-hostel" value={hostelId} onChange={(e) => setHostelId(e.target.value)}>
+              {hostels.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                </option>
+              ))}
+            </Select>
+          </FieldWrapper>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} disabled={!campusId}>
+          Delegate approval authority
+        </Button>
+      </div>
+
+      {error && (
+        <div className="mb-4">
+          <Alert>{error}</Alert>
+        </div>
+      )}
+
+      {loading ? (
+        <PageSpinner />
+      ) : delegations.length === 0 ? (
+        <EmptyState icon={<AlertIcon className="h-8 w-8" />} title="No active delegations" description="Nobody is currently covering for anyone at this campus." />
+      ) : (
+        <Card>
+          <ul className="divide-y divide-slate-100">
+            {delegations.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm sm:px-5">
+                <div>
+                  <p className="font-medium text-slate-900">
+                    {DELEGATABLE_ROLE_LABELS[d.role]} authority → {staffNames[d.delegateUserId] ?? d.delegateUserId.slice(0, 8)}
+                  </p>
+                  <p className="text-xs text-slate-500">{d.reason}</p>
+                  {d.exclusions.length > 0 && (
+                    <p className="mt-0.5 text-xs text-amber-700">Except: {d.exclusions.map((e) => ENTITY_TYPE_LABELS[e]).join(', ')}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-slate-500">
+                    {new Date(d.effectiveFrom).toLocaleString()} – {new Date(d.effectiveTo).toLocaleString()}
+                  </p>
+                  <Button size="sm" variant="danger" onClick={() => setRevoking(d)}>
+                    Revoke
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {createOpen && campusId && <CreateDelegationSheet campusId={campusId} onClose={() => setCreateOpen(false)} onCreated={load} />}
+      {revoking && (
+        <RevokeDelegationSheet
+          delegation={revoking}
+          delegateName={staffNames[revoking.delegateUserId] ?? revoking.delegateUserId.slice(0, 8)}
+          onClose={() => setRevoking(null)}
+          onRevoked={load}
+        />
+      )}
+    </div>
+  );
+}
+
+function CreateDelegationSheet({ campusId, onClose, onCreated }: { campusId: string; onClose: () => void; onCreated: () => void }) {
+  const [candidates, setCandidates] = useState<{ id: string; role: DelegatableRole; name: string; email: string }[]>([]);
+  const [role, setRole] = useState<DelegatableRole>('warden');
+  const [delegateUserId, setDelegateUserId] = useState('');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [effectiveTo, setEffectiveTo] = useState('');
+  const [reason, setReason] = useState('');
+  const [exclusions, setExclusions] = useState<DelegatableEntityType[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    void delegationsApi.listDelegationCandidates(campusId).then(setCandidates);
+  }, [campusId]);
+
+  function toggleExclusion(type: DelegatableEntityType) {
+    setExclusions((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
+  }
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await delegationsApi.createDelegation({
+        campusId,
+        role,
+        delegateUserId,
+        effectiveFrom: new Date(effectiveFrom).toISOString(),
+        effectiveTo: new Date(effectiveTo).toISOString(),
+        reason,
+        exclusions,
+      });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="Delegate approval authority"
+      footer={
+        <Button fullWidth onClick={() => void handleSubmit()} disabled={submitting || !delegateUserId || !effectiveFrom || !effectiveTo || !reason.trim()}>
+          {submitting ? 'Delegating…' : 'Delegate'}
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+        <Alert tone="warning">
+          You can only delegate a role you hold yourself (or outrank) at this campus — a Warden can delegate Warden authority, only a
+          Head Warden can delegate Head Warden authority.
+        </Alert>
+        <FieldWrapper label="Role being delegated" htmlFor="dc-role">
+          <Select id="dc-role" value={role} onChange={(e) => setRole(e.target.value as DelegatableRole)}>
+            {Object.entries(DELEGATABLE_ROLE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+        </FieldWrapper>
+        <FieldWrapper label="Delegate to" htmlFor="dc-delegate" required>
+          <Select id="dc-delegate" value={delegateUserId} onChange={(e) => setDelegateUserId(e.target.value)}>
+            <option value="">Select staff</option>
+            {candidates.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({DELEGATABLE_ROLE_LABELS[c.role]})
+              </option>
+            ))}
+          </Select>
+        </FieldWrapper>
+        <div className="grid grid-cols-2 gap-3">
+          <FieldWrapper label="From" htmlFor="dc-from" required>
+            <Input id="dc-from" type="datetime-local" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+          </FieldWrapper>
+          <FieldWrapper label="To" htmlFor="dc-to" required>
+            <Input id="dc-to" type="datetime-local" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} />
+          </FieldWrapper>
+        </div>
+        <FieldWrapper label="Reason" htmlFor="dc-reason" required>
+          <Textarea id="dc-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+        </FieldWrapper>
+        <FieldWrapper label="Keep these for yourself" htmlFor="dc-exclusions" hint="Optional — the delegate covers everything else">
+          <div className="space-y-1.5">
+            {DELEGATABLE_ENTITY_TYPES.map((type) => (
+              <label key={type} className="flex min-h-touch cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={exclusions.includes(type)}
+                  onChange={() => toggleExclusion(type)}
+                  className="h-4 w-4 rounded border-slate-300 text-accent"
+                />
+                {ENTITY_TYPE_LABELS[type]}
+              </label>
+            ))}
+          </div>
+        </FieldWrapper>
+      </div>
+    </Sheet>
+  );
+}
+
+function RevokeDelegationSheet({
+  delegation,
+  delegateName,
+  onClose,
+  onRevoked,
+}: {
+  delegation: ApproverDelegation;
+  delegateName: string;
+  onClose: () => void;
+  onRevoked: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await delegationsApi.revokeDelegation(delegation.id, reason);
+      onRevoked();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="Revoke this delegation"
+      footer={
+        <Button fullWidth variant="danger" onClick={() => void handleSubmit()} disabled={submitting || !reason.trim()}>
+          {submitting ? 'Revoking…' : 'Revoke now'}
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+        <p className="text-sm text-slate-600">
+          Takes effect immediately — {delegateName} will lose {DELEGATABLE_ROLE_LABELS[delegation.role]} approval authority as soon as
+          you revoke.
+        </p>
+        <FieldWrapper label="Reason" htmlFor="dr-reason" required>
+          <Textarea id="dr-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+        </FieldWrapper>
       </div>
     </Sheet>
   );

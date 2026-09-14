@@ -29,7 +29,7 @@ export const createCampaignSchema = z
     language: z.string().trim().max(10).optional(),
     serviceRecoveryTriggerScore: z.number().min(0).max(10).optional(),
   })
-  .refine((v) => v.closeAt > v.openAt, { message: 'closeAt must be after openAt', path: ['closeAt'] });
+  .refine((v) => v.closeAt > v.openAt, { message: 'The closing time must be after the opening time.', path: ['closeAt'] });
 
 export const cancelCampaignSchema = z.object({
   reason: z.string().trim().min(1).max(500),
